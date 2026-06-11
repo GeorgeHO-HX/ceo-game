@@ -116,6 +116,35 @@ const QS=[
     {l:'Learning + wellbeing',h:10,p:10,m:'Best CEO ever!',v:'learning'}]},
 ];
 
+const CHAT_LINES={
+  positive:[
+    'Best day ever!',
+    'I love working here!',
+    'These new laptops are amazing!',
+    'I feel really supported.',
+    'This office keeps getting better!'
+  ],
+  neutral:[
+    'Interesting choice...',
+    "Let's see how this goes.",
+    'I can work with that.'
+  ],
+  negative:[
+    "I'm not sure about this.",
+    'These computers belong in a museum.',
+    'Does anyone listen to us?',
+    'Even the office plant is giving up.',
+    'Another meeting? Seriously?'
+  ],
+  replies:[
+    'Totally.',
+    'Same here.',
+    'Good point.',
+    'Hmm...',
+    'Yeah.'
+  ]
+};
+
 // ═══════════════════════════════════════════════════════
 //  DRAW HELPERS
 // ═══════════════════════════════════════════════════════
@@ -456,6 +485,7 @@ class GameScene extends Phaser.Scene{
     this.employees=[]; this.qActive=false; this.over=false;
     this.totalH=0; this.totalP=0; this.samples=0;
     this.workerCooldown=0; this.workerActive=false;
+    this.chatActive=false; this.lastChatAt=0;
     this.curMaxEmp=BASE_EMP; this.activeDeskCount=BASE_EMP;
     this.goodChoices=0; this.badChoices=0; this.choiceResults=[]; this.unlockedThemes={};
 
@@ -473,6 +503,7 @@ class GameScene extends Phaser.Scene{
 
     this.time.addEvent({delay:3500,loop:true,callback:this._redistribute,callbackScope:this});
     this.time.addEvent({delay:1000,loop:true,callback:this._tick,callbackScope:this});
+    this.time.addEvent({delay:5200,loop:true,callback:this._employeeChat,callbackScope:this});
   }
 
   // ── DESK POSITIONS ─────────────────────────────────
@@ -898,7 +929,7 @@ class GameScene extends Phaser.Scene{
 
   // ── REDISTRIBUTE (AI target assignment) ────────────
   _redistribute(){
-    if(this.over||this.qActive||this.workerActive)return;
+    if(this.over||this.qActive||this.workerActive||this.chatActive)return;
     const active=this.employees.filter(e=>!e.isLeaving&&!e.departed);
     active.forEach((emp,i)=>{
       const r=Math.random();
@@ -922,6 +953,81 @@ class GameScene extends Phaser.Scene{
         emp.iconT.setText('💬');
       }
     });
+  }
+
+  _chatMood(){
+    const active=this.employees.filter(e=>!e.isLeaving&&!e.departed);
+    if(active.length===0)return 'neutral';
+    const avgH=active.reduce((s,e)=>s+e.happiness,0)/active.length;
+    const avgP=active.reduce((s,e)=>s+e.productivity,0)/active.length;
+    if(avgH>=68&&avgP>=55)return 'positive';
+    if(avgH<38||avgP<35)return 'negative';
+    return 'neutral';
+  }
+
+  _employeeChat(){
+    if(this.over||this.qActive||this.workerActive||this.chatActive)return;
+    const active=this.employees.filter(e=>!e.isLeaving&&!e.departed);
+    if(active.length<2)return;
+    const shuffled=Phaser.Utils.Array.Shuffle([...active]);
+    const a=shuffled[0], b=shuffled[1];
+    const spots=[
+      {x:106,y:HUD_H+388},{x:106,y:HUD_H+486},
+      {x:246,y:HUD_H+258},{x:292,y:HUD_H+434},
+      {x:316,y:HUD_H+580}
+    ];
+    const spot=spots[Phaser.Math.Between(0,spots.length-1)];
+    this.chatActive=true;
+    a.setTarget(spot.x-14,spot.y);
+    b.setTarget(spot.x+18,spot.y);
+    a.iconT.setText('💬');
+    b.iconT.setText('💬');
+
+    this.time.delayedCall(1300,()=>{
+      if(this.over||a.departed||b.departed){this.chatActive=false;return;}
+      a.facingLeft=false;
+      b.facingLeft=true;
+      const mood=this._chatMood();
+      const line=Phaser.Utils.Array.GetRandom(CHAT_LINES[mood]);
+      const reply=Phaser.Utils.Array.GetRandom(CHAT_LINES.replies);
+      this._speechBubble(a,line,mood);
+      this.time.delayedCall(1150,()=>this._speechBubble(b,reply,'neutral'));
+      this.time.delayedCall(3000,()=>{
+        if(!a.departed)a.iconT.setText('');
+        if(!b.departed)b.iconT.setText('');
+        this.chatActive=false;
+      });
+    });
+  }
+
+  _speechBubble(emp,msg,mood='neutral'){
+    if(!emp||emp.departed)return;
+    const col=mood==='positive'?C.green:mood==='negative'?C.red:C.yellow;
+    const bubble=this.add.container(emp.body.x,emp.body.y-55).setDepth(27);
+    const maxChars=22;
+    const words=msg.split(' ');
+    const lines=[]; let line='';
+    words.forEach(w=>{
+      const next=line?`${line} ${w}`:w;
+      if(next.length>maxChars){lines.push(line);line=w;}else line=next;
+    });
+    if(line)lines.push(line);
+    const text=lines.join('\n');
+    const w=Math.min(GW-34,Math.max(92,Math.max(...lines.map(l=>l.length))*6+18));
+    const h=24+lines.length*11;
+    const bg=this.add.rectangle(0,0,w,h,0xFFFFFF,0.96).setOrigin(0.5);
+    bg.setStrokeStyle(3,col);
+    const tail=this.add.graphics();
+    tail.fillStyle(0xFFFFFF);tail.fillRect(-7,h/2-2,14,8);
+    tail.lineStyle(2,col);tail.strokeRect(-7,h/2-2,14,8);
+    const nameCol=`#${col.toString(16).padStart(6,'0')}`;
+    const name=this.add.text(-w/2+7,-h/2+5,emp.empName.toUpperCase(),{fontFamily:"'Press Start 2P'",fontSize:'5px',color:nameCol}).setOrigin(0,0);
+    const txt=this.add.text(0,3,text,{fontFamily:"'Press Start 2P'",fontSize:'6px',color:'#111111',align:'center',lineSpacing:3}).setOrigin(0.5);
+    bubble.add([bg,tail,name,txt]);
+    bubble.x=Phaser.Math.Clamp(bubble.x,w/2+6,GW-w/2-6);
+    bubble.y=Phaser.Math.Clamp(bubble.y,HUD_H+38,GH-122);
+    this.tweens.add({targets:bubble,y:'-=4',duration:120,yoyo:true,repeat:2,ease:'Linear'});
+    this.time.delayedCall(2600,()=>this.tweens.add({targets:bubble,alpha:0,y:'-=10',duration:260,onComplete:()=>bubble.destroy(true)}));
   }
 
   // ── HUD ────────────────────────────────────────────

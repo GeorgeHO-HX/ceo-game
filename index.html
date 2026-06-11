@@ -439,7 +439,7 @@ class GameScene extends Phaser.Scene{
     this.totalH=0; this.totalP=0; this.samples=0;
     this.workerCooldown=0; this.workerActive=false;
     this.curMaxEmp=BASE_EMP; this.activeDeskCount=BASE_EMP;
-    this.goodChoices=0; this.badChoices=0; this.unlockedThemes={};
+    this.goodChoices=0; this.badChoices=0; this.choiceResults=[]; this.unlockedThemes={};
 
     this.deskPool=this._buildDeskPool();
     this._buildOffice();
@@ -732,6 +732,10 @@ class GameScene extends Phaser.Scene{
       g.fillStyle(0xFFFFFF);g.fillRect(338,HUD_H+526,16,4);g.fillRect(338,HUD_H+535,16,4);
       c.add(this.add.text(346,HUD_H+512,'RECYCLE',{fontFamily:"'Press Start 2P'",fontSize:'4px',color:'#FFFFFF'}).setOrigin(0.5));
     });
+    addBit('plants',(g,c)=>{
+      [[24,HUD_H+196],[184,HUD_H+204],[26,HUD_H+382],[184,HUD_H+458],[118,GH-126]].forEach(([x,y])=>plantAt(g,x,y));
+      c.add(this.add.text(108,HUD_H+114,'FRESH OFFICE',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#416A35'}).setOrigin(0.5));
+    });
     addBit('chill',(g,c)=>{
       g.fillStyle(0x5B6E90);g.fillRect(240,GH-92,88,28);
       g.fillStyle(0x6F82A6);g.fillRect(244,GH-88,80,18);
@@ -871,6 +875,14 @@ class GameScene extends Phaser.Scene{
     this.add.text(198,bY-6,'PRODUCTIVITY',{...lS,fontSize:'5px'}).setDepth(11);
     this.add.rectangle(292,bY,70,13,0x222233).setDepth(11).setOrigin(0,0.5);
     this.pBar=this.add.rectangle(292,bY,49,13,C.orange).setDepth(12).setOrigin(0,0.5);
+    this.add.text(10,78,'DECISIONS',{...lS,fontSize:'4px'}).setDepth(11);
+    this.decisionPips=[];
+    const pW=13,gap=3,startX=78;
+    for(let i=0;i<QS.length;i++){
+      const pip=this.add.rectangle(startX+i*(pW+gap),80,pW,5,0x2A2A3A).setDepth(11).setOrigin(0,0.5);
+      pip.setStrokeStyle(1,0x444455);
+      this.decisionPips.push(pip);
+    }
   }
 
   _refreshHUD(){
@@ -891,7 +903,24 @@ class GameScene extends Phaser.Scene{
     this.pBar.setSize(Math.max(1,(avgP/100)*70),13);
     this.pBar.setFillStyle(avgP>60?C.orange:avgP>30?C.yellow:C.red);
     this.totalH+=avgH; this.totalP+=avgP; this.samples++;
+    const grade=Math.round((avgH+avgP+n*8)/3);
+    if(!this.officeT){
+      this.officeT=this.add.text(GW-10,78,'',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:C.gH}).setDepth(11).setOrigin(1,0);
+    }
+    this.officeT.setText(grade>=75?'CEO LEGEND':grade>=50?'GOOD PLACE':'CRISIS');
+    this.officeT.setColor(grade>=75?C.gH:grade>=50?C.yH:C.rH);
     return{avgH,avgP,n};
+  }
+
+  _recordDecision(opt){
+    const impact=opt.h+opt.p;
+    const idx=this.choiceResults.length;
+    this.choiceResults.push(impact);
+    const col=impact>=18?C.green:impact>=0?C.yellow:C.red;
+    if(this.decisionPips[idx]){
+      this.decisionPips[idx].setFillStyle(col);
+      this.tweens.add({targets:this.decisionPips[idx],scaleY:2,duration:120,yoyo:true,ease:'Sine.easeOut'});
+    }
   }
 
   // ── CEO AVATAR ─────────────────────────────────────
@@ -1027,6 +1056,8 @@ class GameScene extends Phaser.Scene{
     this.employees.filter(e=>!e.isLeaving&&!e.departed).forEach(emp=>{
       emp.applyEffect(opt.h+(Math.random()*8-4),opt.p+(Math.random()*8-4));
     });
+    this._recordDecision(opt);
+    this._impactBurst(opt);
     if(opt.h+opt.p>=15){
       this.goodChoices++;
       this._unlockTheme(opt.v);
@@ -1038,6 +1069,25 @@ class GameScene extends Phaser.Scene{
     this._showFeedback(opt.m,opt.h+opt.p>=0);
     if(this.qIndex>=this.qPool.length){
       this.time.delayedCall(3600,()=>{if(!this.over)this._endGame(true);});
+    }
+  }
+
+  _impactBurst(opt){
+    const positive=opt.h+opt.p>=0;
+    const col=positive?C.green:C.red;
+    this.cameras.main.flash(120,positive?20:80,positive?160:10,positive?90:20);
+    if(!positive)this.cameras.main.shake(120,0.006);
+    const icons=positive?['+H','+P','✨','😊']:['-H','-P','!','😟'];
+    for(let i=0;i<7;i++){
+      this.time.delayedCall(i*55,()=>{
+        this._float(
+          Phaser.Math.Between(48,GW-48),
+          Phaser.Math.Between(HUD_H+80,GH-130),
+          icons[i%icons.length],
+          positive?C.gH:C.rH,
+          8
+        );
+      });
     }
   }
 

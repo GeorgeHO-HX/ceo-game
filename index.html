@@ -1208,27 +1208,24 @@ class GameScene extends Phaser.Scene{
   // ── QUESTION MODAL ─────────────────────────────────
   _showQuestion(){
     this.qActive=true;
-    const q=this.qPool[this.qIndex++], W=GW,H=GH,cardH=335,midY=H/2;
+    const q=this.qPool[this.qIndex++], W=GW,H=GH,cardH=Math.min(430,H-135),midY=H/2+8;
     const ui=this.add.container(0,0).setDepth(30);
     const dim=this.add.rectangle(W/2,H/2,W,H,0,0.80);
     const card=this.add.rectangle(W/2,midY,W-16,cardH,C.panel);
     const border=this.add.rectangle(W/2,midY,W-16,cardH); border.setStrokeStyle(3,C.orange);
-    const qn=this.add.text(W/2,midY-cardH/2+12,`DECISION ${this.qIndex}/${this.qPool.length}`,{fontFamily:"'Press Start 2P'",fontSize:'7px',color:C.oH}).setOrigin(0.5);
-    const ic=this.add.text(W/2,midY-cardH/2+38,q.i,{fontSize:'28px'}).setOrigin(0.5);
-    const qt=this.add.text(W/2,midY-cardH/2+80,q.t,{fontFamily:"'Press Start 2P'",fontSize:'9px',color:'#FFF',align:'center',wordWrap:{width:W-44}}).setOrigin(0.5,0);
+    const qn=this.add.text(W/2,midY-cardH/2+16,`DECISION ${this.qIndex}/${this.qPool.length}`,{fontFamily:"'Press Start 2P'",fontSize:'9px',color:C.oH}).setOrigin(0.5);
+    const ic=this.add.text(W/2,midY-cardH/2+50,q.i,{fontSize:'34px'}).setOrigin(0.5);
+    const qt=this.add.text(W/2,midY-cardH/2+96,q.t,{fontFamily:"'Press Start 2P'",fontSize:'11px',color:'#FFF',align:'center',lineSpacing:6,wordWrap:{width:W-38}}).setOrigin(0.5,0);
     ui.add([dim,card,border,qn,ic,qt]);
-    const cols=[C.orange,0x4361EE,0x7B2FBE], by0=midY-cardH/2+168;
+    const cols=[C.orange,0x4361EE,0x7B2FBE], by0=midY-cardH/2+215;
     q.o.forEach((opt,idx)=>{
-      const by=by0+idx*54, col=cols[idx];
-      const btn=this.add.rectangle(W/2,by,W-44,46,col).setInteractive();
-      const hTxt=`${opt.h>=0?'+':''}${opt.h}`;
-      const pTxt=`${opt.p>=0?'+':''}${opt.p}`;
-      const bt=this.add.text(W/2,by-6,opt.l,{fontFamily:"'Press Start 2P'",fontSize:'8px',color:'#FFF',wordWrap:{width:W-66},align:'center'}).setOrigin(0.5);
-      const fx=this.add.text(W/2,by+13,`H ${hTxt}   P ${pTxt}`,{fontFamily:"'Press Start 2P'",fontSize:'6px',color:'#FFFFFF',stroke:'#000',strokeThickness:2}).setOrigin(0.5);
+      const by=by0+idx*61, col=cols[idx];
+      const btn=this.add.rectangle(W/2,by,W-38,52,col).setInteractive();
+      const bt=this.add.text(W/2,by,opt.l,{fontFamily:"'Press Start 2P'",fontSize:'9px',color:'#FFF',wordWrap:{width:W-58},align:'center',lineSpacing:4}).setOrigin(0.5);
       btn.on('pointerdown',()=>{ui.destroy(true);this._applyChoice(opt);this.qActive=false;});
       btn.on('pointerover',()=>{const lc=Phaser.Display.Color.ValueToColor(col);lc.lighten(25);btn.setFillStyle(lc.color);});
       btn.on('pointerout',()=>btn.setFillStyle(col));
-      ui.add([btn,bt,fx]);
+      ui.add([btn,bt]);
     });
     this.tweens.add({targets:[card,border],scaleX:{from:0.85,to:1},scaleY:{from:0.85,to:1},duration:180,ease:'Back.easeOut'});
   }
@@ -1275,13 +1272,13 @@ class GameScene extends Phaser.Scene{
   _showFeedback(msg,positive){
     const fb=this.add.container(0,0).setDepth(25);
     const speaker=this._pickSpeaker();
-    const bg=this.add.rectangle(GW/2,GH-104,GW-20,66,C.panel,0.96);
-    bg.setStrokeStyle(2,positive?C.orange:C.red);
-    const name=this.add.text(22,GH-132,speaker?`${speaker.empName}:`:'TEAM:',{fontFamily:"'Press Start 2P'",fontSize:'7px',color:positive?C.gH:C.rH});
-    const txt=this.add.text(GW/2,GH-105,`"${msg}"`,{fontFamily:"'Press Start 2P'",fontSize:'8px',color:'#FFF',wordWrap:{width:GW-44},align:'center'}).setOrigin(0.5);
+    const bg=this.add.rectangle(GW/2,GH-122,GW-16,104,C.panel,0.97);
+    bg.setStrokeStyle(3,positive?C.orange:C.red);
+    const name=this.add.text(22,GH-166,speaker?`${speaker.empName}:`:'TEAM:',{fontFamily:"'Press Start 2P'",fontSize:'9px',color:positive?C.gH:C.rH});
+    const txt=this.add.text(GW/2,GH-118,`"${msg}"`,{fontFamily:"'Press Start 2P'",fontSize:'10px',color:'#FFF',wordWrap:{width:GW-34},align:'center',lineSpacing:6}).setOrigin(0.5);
     if(speaker)this._float(speaker.x,speaker.y-42,'💬',positive?C.gH:C.rH,11);
     fb.add([bg,name,txt]);
-    this.time.delayedCall(2600,()=>this.tweens.add({targets:fb,alpha:0,duration:400,onComplete:()=>fb.destroy(true)}));
+    this.time.delayedCall(3200,()=>this.tweens.add({targets:fb,alpha:0,duration:400,onComplete:()=>fb.destroy(true)}));
   }
 
   _pickSpeaker(){

@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CEO Simulator — Holiday Extras</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{width:100%;height:100%;margin:0;padding:0;background:#1A1410;overflow:hidden}
+    canvas{display:block;image-rendering:pixelated;width:100%!important;height:100%!important}
+  </style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════════════════
+// Fill whatever screen the game runs on — capped at typical phone max width
+const GW=Math.min(window.innerWidth,430);
+const GH=window.innerHeight;
+const HUD_H=88;
+const GAME_DURATION=300, Q_INTERVAL=18;
+const BASE_EMP=8, MAX_EMP=12;
+
+const C={
+  orange:0xFF6600,oH:'#FF6600',orangeLt:0xFF8C42,oLtH:'#FF8C42',
+  dark:0x0D0D1A,dH:'#0D0D1A',panel:0x12122A,darkMid:0x1A1A2E,dmH:'#1A1A2E',
+  teal:0x00B4D8,tH:'#00B4D8',green:0x06D6A0,gH:'#06D6A0',
+  red:0xFF4455,rH:'#FF4455',yellow:0xFFD60A,yH:'#FFD60A',
+  // Office
+  wallPaint:0xE8D8C0, wallDark:0x8B5C30, skirting:0xC8A070,
+  floor:0xECE4D0, floorGrid:0xD4CCB8,
+  carpet:0x7090AA, carpetDk:0x5A7890,
+  deskTop:0xD4874A, deskSide:0xA85A28,
+  chairDark:0x252535, chairSeat:0x38385A,
+  screenBg:0x080818, screenGlow:0x55DDFF,
+  tableRound:0xD4874A,tableDark:0xA85A28,
+  pingBlue:0x1A6CB8, pingGreen:0x1A7A1A,
+  cab:0xB87840, cabDk:0x886020,
+  pot:0x7A4A20, leafDk:0x3A7228, leafLt:0x4EA030,
+  winFrame:0x7A4A20, winGlass:0xAADDFF, winGlassLt:0xCCEEFF,
+  doorCol:0x8B5A2B, doorDk:0x5A3010,
+  woodFloor:0xC89848, woodDk:0xA87030,
+};
+
+// ═══════════════════════════════════════════════════════
+//  8 UNIQUE EMPLOYEE TYPES
+// ═══════════════════════════════════════════════════════
+const EMP_T=[
+  {hair:0x111111,hs:'short',   skin:0xFFCFA0,suit:0x2244BB,tie:0xFF6600,tr:0x1A2244},
+  {hair:0x7A3010,hs:'long',    skin:0xC47E45,suit:0x777777,tie:0xFFFFFF,tr:0x444444},
+  {hair:0xCCA040,hs:'short',   skin:0xFFCFA0,suit:0x3377BB,tie:0xFF4444,tr:0x1A4488},
+  {hair:0x0A0A0A,hs:'bun',     skin:0xFFCFA0,suit:0x7744AA,tie:0xFFFFFF,tr:0x442266},
+  {hair:0xCC4422,hs:'short',   skin:0xFFCFA0,suit:0x226644,tie:0xFFFF44,tr:0x113322},
+  {hair:0xDDCC77,hs:'ponytail',skin:0xC47E45,suit:0x009988,tie:0xFFFFFF,tr:0x005544},
+  {hair:0x2A2A2A,hs:'none',    skin:0x8B5E3C,suit:0xFF6600,tie:0xFFFFFF,tr:0x442200},
+  {hair:0x1A0A0A,hs:'long',    skin:0xFFCFA0,suit:0xCC3366,tie:0xFFFFFF,tr:0x661133},
+];
+
+const EMP_NAMES=['Maya','Ben','Sofia','Jay','Amira','Leo','Nia','Sam'];
+
+// CEO avatars
+const AVATARS=[
+  {name:'The Visionary',    suit:0x4361EE,skin:0xFFCFA0,hair:0x1A1A1A},
+  {name:'The Hustler',      suit:0xFF6600,skin:0xC47E45,hair:0x0D0D0D},
+  {name:'The Innovator',    suit:0x7B2FBE,skin:0xFFCFA0,hair:0xEE55AA},
+  {name:'The People Person',suit:0x06D6A0,skin:0xC47E45,hair:0x3A2200},
+];
+
+// ═══════════════════════════════════════════════════════
+//  WORKPLACE THEME QUESTIONS (10)
+// ═══════════════════════════════════════════════════════
+const QS=[
+  {t:'Your company has\nmoved office.\nHow do you set it up?',i:'🏢',theme:'layout',o:[
+    {l:'Pack in more desks',h:-10,p:15,m:'More desks, less breathing room.',v:'clutter'},
+    {l:'Games everywhere',h:15,p:-5,m:'Fun, but focus takes a wobble.',v:'chill'},
+    {l:'Focus + social spaces',h:10,p:10,m:'Balanced space. Smart start!',v:'plants'}]},
+  {t:'You have money\nto improve the\nworkplace. Buy what?',i:'💻',theme:'tech',o:[
+    {l:'New laptops + tech',h:5,p:15,m:'These new laptops are amazing!',v:'tech'},
+    {l:'Wellbeing facilities',h:15,p:5,m:'People feel properly cared for.',v:'chill'},
+    {l:'A bit of both',h:10,p:10,m:'A practical upgrade for everyone.',v:'coffee'}]},
+  {t:'Employees have\nideas to improve\nthe company.',i:'💬',theme:'ideas',o:[
+    {l:'Managers decide',h:-10,p:10,m:'Does anyone listen to us?',v:'clutter'},
+    {l:'Anyone changes anything',h:15,p:0,m:'Creative, but chaotic.',v:'ideas'},
+    {l:'Create an ideas board',h:10,p:10,m:"I'm glad someone listened!",v:'ideas'}]},
+  {t:'A new employee\njoins today.\nWhat do you do?',i:'👋',theme:'onboarding',o:[
+    {l:'Laptop and good luck',h:-5,p:0,m:'They look a bit lost...',v:'empty'},
+    {l:'Tour + introductions',h:10,p:5,m:'They feel welcome already.',v:'coffee'},
+    {l:'Training + buddy',h:15,p:10,m:'Confidence unlocked.',v:'learning'}]},
+  {t:'The team finishes\na huge project\nearly. What now?',i:'🏆',theme:'celebrate',o:[
+    {l:'Straight to next job',h:-10,p:-5,m:'The room just deflated.',v:'clutter'},
+    {l:'Award one person',h:10,p:5,m:'Nice moment, but narrow.',v:'trophy'},
+    {l:'Celebrate everyone',h:15,p:10,m:'Best day ever!',v:'trophy'}]},
+  {t:'People look tired\nand mistakes are\ncreeping in.',i:'😴',theme:'wellbeing',o:[
+    {l:'Work harder',h:-15,p:-10,m:'Even the office plant gave up.',v:'dead'},
+    {l:'Wellbeing day',h:10,p:5,m:'A reset helped the mood.',v:'chill'},
+    {l:'Reduce stress properly',h:15,p:10,m:'I feel really supported.',v:'chill'}]},
+  {t:'The office wastes\nlots of energy.\nWhat do you do?',i:'🌱',theme:'green',o:[
+    {l:'Ignore it',h:0,p:0,m:'Interesting choice...',v:'empty'},
+    {l:'Energy-saving kit',h:5,p:10,m:'Efficient and tidy.',v:'green'},
+    {l:'Get everyone involved',h:10,p:10,m:'The office feels greener.',v:'green'}]},
+  {t:'Employees say\nmeetings take up\ntoo much time.',i:'🗣️',theme:'meetings',o:[
+    {l:'Keep them the same',h:-10,p:-10,m:'Another meeting? Seriously?',v:'clutter'},
+    {l:'Shorter meetings',h:5,p:10,m:'Sharper meetings. Better flow.',v:'tech'},
+    {l:'Meeting-free afternoons',h:10,p:15,m:'Focus time restored!',v:'tech'}]},
+  {t:'You have budget\nfor learning new\nskills.',i:'📚',theme:'learning',o:[
+    {l:'Save the money',h:-10,p:-5,m:"I'm not sure about this.",v:'empty'},
+    {l:'Occasional training',h:5,p:10,m:'I can work with that.',v:'learning'},
+    {l:'Regular learning time',h:15,p:10,m:'This office keeps getting better!',v:'learning'}]},
+  {t:'Final CEO decision!\nOne last workplace\nimprovement.',i:'⭐',theme:'final',o:[
+    {l:'Upgrade technology',h:5,p:15,m:'Productivity gets a final boost!',v:'tech'},
+    {l:'Team culture activities',h:15,p:5,m:'I love working here!',v:'trophy'},
+    {l:'Learning + wellbeing',h:10,p:10,m:'Best CEO ever!',v:'learning'}]},
+];
+
+// ═══════════════════════════════════════════════════════
+//  DRAW HELPERS
+// ═══════════════════════════════════════════════════════
+function drawCEOPerson(g,cx,cy,s,suit,skin,hair){
+  g.fillStyle(0x222233);g.fillRect(cx-3*s,cy+8*s,2*s,5*s);g.fillRect(cx+s,cy+8*s,2*s,5*s);
+  g.fillStyle(suit);g.fillRect(cx-4*s,cy,8*s,9*s);
+  g.fillStyle(skin);g.fillRect(cx-3*s,cy-6*s,6*s,6*s);
+  g.fillStyle(hair);g.fillRect(cx-3*s,cy-8*s,6*s,3*s);
+  g.fillStyle(0);g.fillRect(cx-2*s,cy-4*s,s,s);g.fillRect(cx+s,cy-4*s,s,s);
+  g.fillRect(cx-s,cy-2*s,3*s,s);
+}
+
+function plantAt(g,x,y){
+  g.fillStyle(C.pot);g.fillRect(x-8,y,16,12);
+  g.fillStyle(0xA06030);g.fillRect(x-6,y+12,12,4);
+  g.fillStyle(C.leafDk);g.fillCircle(x,y-4,11);
+  g.fillStyle(C.leafLt);g.fillCircle(x-5,y-8,7);g.fillCircle(x+5,y-8,7);
+  g.fillStyle(C.leafDk);g.fillCircle(x,y-10,5);
+}
+
+// ═══════════════════════════════════════════════════════
+//  EMPLOYEE  (animated pixel-art character)
+// ═══════════════════════════════════════════════════════
+class Employee{
+  constructor(scene,id,x,y){
+    this.scene=scene; this.id=id;
+    this.x=x; this.y=y; this.tx=x; this.ty=y;
+    this.happiness=70; this.productivity=70;
+    this.isLeaving=false; this.departed=false;
+    this.type=EMP_T[id%EMP_T.length];
+    this.empName=EMP_NAMES[id%EMP_NAMES.length];
+    this.facingLeft=false;
+    this.walkClock=Math.random()*Math.PI*2; // randomise walk phase
+    this.stuckTimer=0; this.lastX=x; this.lastY=y;
+    this.waypoints=[]; // door-gap waypoints for crossing the divider wall
+
+    // ── Physics rectangle (invisible, drives collision) ──
+    this.body=scene.add.rectangle(x,y,14,22,0,0).setVisible(false);
+    scene.physics.add.existing(this.body,false);
+    this.body.body.setCollideWorldBounds(true);
+    this.body.body.setMaxVelocity(180,180);
+    this.body.empRef=this; // back-ref for collider callbacks
+
+    // ── Visual container ──
+    this.cnt=scene.add.container(x,y).setDepth(5);
+    const t=this.type, s=2;
+
+    // Shadow
+    this.shadow=scene.add.ellipse(0,18,20,8,0x000000,0.25);
+
+    // Separate limb graphics for walk animation
+    this.legL=scene.add.graphics(); this._drawLeg(this.legL,-4,s,t);
+    this.legR=scene.add.graphics(); this._drawLeg(this.legR, 1,s,t);
+    this.armL=scene.add.graphics(); this._drawArm(this.armL,-7,s,t);
+    this.armR=scene.add.graphics(); this._drawArm(this.armR, 5,s,t);
+
+    // Static body + head
+    this.torsoG=scene.add.graphics();
+    this._drawTorso(this.torsoG,s,t);
+    this.headG=scene.add.graphics();
+    this._drawHead(this.headG,s,t);
+    this.faceG=scene.add.graphics();
+    this._drawFace(this.faceG,s,this.happiness);
+
+    this.iconT=scene.add.text(0,-34,'',{fontSize:'11px'}).setOrigin(0.5);
+
+    // Shadow lives outside the container so setPosition sets world coords correctly
+    // Layer order: legs (behind), arms (behind), torso, head, face, icon
+    this.cnt.add([this.legL,this.legR,this.armL,this.armR,
+                  this.torsoG,this.headG,this.faceG,this.iconT]);
+  }
+
+  _drawLeg(g,lx,s,t){
+    g.clear();
+    g.fillStyle(t.tr);  g.fillRect(lx*s,8*s,3*s,6*s);
+    g.fillStyle(0x111111); g.fillRect((lx-1)*s,13*s,4*s,2*s);
+  }
+  _drawArm(g,ax,s,t){
+    g.clear();
+    g.fillStyle(t.suit); g.fillRect(ax*s,s,2*s,6*s);
+    g.fillStyle(t.skin); g.fillRect(ax*s,6*s,2*s,3*s);
+  }
+  _drawTorso(g,s,t){
+    g.clear();
+    g.fillStyle(t.suit); g.fillRect(-5*s,0,10*s,9*s);
+    g.fillStyle(0xFFFFFF); g.fillRect(-s,0,2*s,2*s);
+    g.fillStyle(t.tie);   g.fillRect(-s,2*s,2*s,5*s);
+  }
+  _drawHead(g,s,t){
+    g.clear();
+    g.fillStyle(t.skin); g.fillRect(-4*s,-8*s,8*s,8*s);
+    g.fillStyle(t.hair);
+    if(t.hs==='short'){
+      g.fillRect(-4*s,-10*s,8*s,3*s);
+      g.fillRect(-5*s,-8*s,s,4*s); g.fillRect(4*s,-8*s,s,4*s);
+    }else if(t.hs==='long'){
+      g.fillRect(-4*s,-10*s,8*s,3*s);
+      g.fillRect(-5*s,-8*s,s,9*s); g.fillRect(4*s,-8*s,s,9*s);
+    }else if(t.hs==='bun'){
+      g.fillRect(-4*s,-10*s,8*s,3*s);
+      g.fillRect(-5*s,-8*s,s,4*s); g.fillRect(4*s,-8*s,s,4*s);
+      g.fillRect(-s,-13*s,4*s,4*s);
+    }else if(t.hs==='ponytail'){
+      g.fillRect(-4*s,-10*s,8*s,3*s);
+      g.fillRect(-5*s,-8*s,s,5*s);
+      g.fillRect(4*s,-9*s,2*s,11*s);
+    }
+    // Ears
+    g.fillStyle(t.skin); g.fillRect(-5*s,-5*s,s,3*s); g.fillRect(4*s,-5*s,s,3*s);
+  }
+  _drawFace(g,s,h){
+    g.clear();
+    g.fillStyle(0x000000);
+    // Eyes
+    g.fillRect(-3*s,-5*s,2*s,2*s); g.fillRect(s,-5*s,2*s,2*s);
+    if(h>=80){
+      // Big grin
+      g.fillRect(-3*s,-2*s,6*s,2*s);
+      g.fillRect(-2*s,-1*s,s,s); g.fillRect(s,-1*s,s,s);
+    }else if(h>=50){
+      g.fillRect(-2*s,-2*s,5*s,s);
+    }else if(h>=25){
+      g.fillRect(-2*s,-s,5*s,s);
+    }else{
+      // Sad + tears
+      g.fillRect(-2*s,0,5*s,s);
+      g.fillRect(-3*s,-s,s,s); g.fillRect(2*s,-s,s,s);
+      g.fillStyle(0x66AAFF);
+      g.fillRect(-3*s,-3*s,s,3*s); g.fillRect(2*s,-3*s,s,3*s);
+    }
+  }
+
+  redrawFace(){
+    this._drawFace(this.faceG,2,this.happiness);
+    this.iconT.setText(this.happiness>=80?'✨':this.happiness<20?'😢':'');
+  }
+
+  applyEffect(hd,pd){
+    this.happiness=Phaser.Math.Clamp(this.happiness+hd,0,100);
+    this.productivity=Phaser.Math.Clamp(this.productivity+pd,0,100);
+    this.redrawFace();
+    this.scene.tweens.add({targets:this.torsoG,alpha:0.3,duration:120,yoyo:true});
+  }
+
+  setTarget(tx,ty){
+    const inLeft=this.body.x<196;
+    const goRight=tx>212;
+    const goLeft=tx<192;
+
+    // Crossing the divider wall — route through nearest door gap first
+    if((inLeft&&goRight)||(!inLeft&&goLeft)){
+      const doorY=Math.abs(this.body.y-210)<Math.abs(this.body.y-380)?210:380;
+      const doorX=inLeft?196:212;
+      this.waypoints=[{x:tx,y:ty}];
+      this.tx=doorX; this.ty=doorY;
+      return;
+    }
+
+    // Carpet-zone navigation — route via clear vertical lanes to avoid desks
+    // Lanes: x=22 (left of col1), x=107 (between cols), x=182 (right of col2)
+    const LANES=[22,107,182];
+    if(tx<196 && this.body.x<196){
+      const bestLane=LANES.reduce((b,lx)=>Math.abs(lx-tx)<Math.abs(b-tx)?lx:b);
+      const alreadyOnLane=Math.abs(this.body.x-bestLane)<18;
+      if(!alreadyOnLane){
+        // Step 1: slide to the lane at current y, Step 2: travel down lane to target y, Step 3: final target
+        this.waypoints=[{x:bestLane,y:ty},{x:tx,y:ty}];
+        this.tx=bestLane; this.ty=this.body.y;
+        return;
+      }
+    }
+
+    this.waypoints=[];
+    this.tx=tx; this.ty=ty;
+  }
+
+  startLeaving(){
+    this.isLeaving=true; this.iconT.setText('🚪');
+    this.tx=GW+90; this.ty=this.y;
+  }
+
+  _animateLimbs(time,moving){
+    if(!moving){
+      this.legL.y=this.legR.y=this.armL.y=this.armR.y=0;
+      this.legL.rotation=this.legR.rotation=0;
+      return;
+    }
+    this.walkClock+=0.18;
+    const sw=Math.sin(this.walkClock)*5;
+    this.legL.y=sw;   this.legR.y=-sw;
+    this.armL.y=-sw*0.5; this.armR.y=sw*0.5;
+    this.legL.rotation=sw*0.06; this.legR.rotation=-sw*0.06;
+  }
+
+  update(time,delta){
+    if(this.departed)return true;
+    const dx=this.tx-this.body.x, dy=this.ty-this.body.y;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    const spd=(this.isLeaving?120:(40+(this.productivity/100)*90+(this.happiness/100)*30));
+    const moving=dist>12;
+
+    // Advance to next waypoint when close enough
+    if(dist<=18&&this.waypoints.length>0){
+      const next=this.waypoints.shift();
+      this.tx=next.x; this.ty=next.y;
+    }
+
+    if(moving){
+      this.body.body.setVelocity((dx/dist)*spd,(dy/dist)*spd);
+      this.facingLeft=dx<0;
+    }else{
+      this.body.body.setVelocity(0,0);
+    }
+
+    // Flip direction
+    this.cnt.scaleX=this.facingLeft?-1:1;
+    // Keep icon readable even when flipped
+    this.iconT.scaleX=this.facingLeft?-1:1;
+
+    // Animate limbs
+    this._animateLimbs(time,moving);
+
+    // Sync visual to physics body
+    this.x=this.body.x; this.y=this.body.y;
+    this.cnt.x=this.body.x; this.cnt.y=this.body.y;
+    this.shadow.setPosition(this.body.x,this.body.y+18);
+
+    // Stuck detection — check every 1.5s, recover by clearing waypoints and picking safe target
+    this.stuckTimer+=delta;
+    if(this.stuckTimer>1500){
+      this.stuckTimer=0;
+      const dd=Math.hypot(this.body.x-this.lastX,this.body.y-this.lastY);
+      if(dd<6&&moving){
+        this.waypoints=[];
+        // Retreat into the nearest clear lane
+        const lanes=[22,107,182];
+        const lane=lanes.reduce((b,lx)=>Math.abs(lx-this.body.x)<Math.abs(b-this.body.x)?lx:b);
+        this.tx=lane;
+        this.ty=this.body.y+Phaser.Math.Between(-30,30);
+      }
+      this.lastX=this.body.x; this.lastY=this.body.y;
+    }
+
+    if(this.isLeaving&&this.body.x>GW+60){ this._vanish(); return true; }
+    return false;
+  }
+
+  _vanish(){
+    this.departed=true;
+    this.scene.tweens.add({targets:[this.cnt,this.shadow],alpha:0,scaleX:0,scaleY:0,
+      duration:300,ease:'Back.easeIn',
+      onComplete:()=>{this.cnt.destroy(true);this.shadow.destroy();this.body.destroy();}});
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  BOOT SCENE
+// ═══════════════════════════════════════════════════════
+class BootScene extends Phaser.Scene{
+  constructor(){super('Boot')}
+  create(){this.scene.start('AvatarSelect')}
+}
+
+// ═══════════════════════════════════════════════════════
+//  AVATAR SELECT
+// ═══════════════════════════════════════════════════════
+class AvatarSelectScene extends Phaser.Scene{
+  constructor(){super('AvatarSelect')}
+  create(){
+    const W=GW,H=GH;
+    this.add.rectangle(W/2,H/2,W,H,C.dark);
+    const gr=this.add.graphics();
+    gr.lineStyle(1,0x1A1A2E,0.5);
+    for(let x=0;x<=W;x+=16)gr.lineBetween(x,0,x,H);
+    for(let y=0;y<=H;y+=16)gr.lineBetween(0,y,W,y);
+    this.add.rectangle(W/2,0,W,4,C.orange).setOrigin(0.5,0);
+    this.add.text(W/2,55,'CEO',{fontFamily:"'Press Start 2P'",fontSize:'40px',color:C.oH,stroke:'#000',strokeThickness:6}).setOrigin(0.5);
+    this.add.text(W/2,105,'SIMULATOR',{fontFamily:"'Press Start 2P'",fontSize:'18px',color:'#FFF',stroke:'#000',strokeThickness:3}).setOrigin(0.5);
+    this.add.text(W/2,133,'by Holiday Extras',{fontFamily:"'Press Start 2P'",fontSize:'7px',color:C.oH}).setOrigin(0.5);
+    this.add.text(W/2,168,'CHOOSE YOUR CEO:',{fontFamily:"'Press Start 2P'",fontSize:'9px',color:'#888899'}).setOrigin(0.5);
+    this.selIdx=0; this.cards=[];
+    AVATARS.forEach((av,i)=>{
+      const cx=i%2===0?W*0.27:W*0.73, cy=272+Math.floor(i/2)*155;
+      const c=this.add.container(cx,cy);
+      const bg=this.add.rectangle(0,0,140,138,C.darkMid).setInteractive();
+      const bd=this.add.rectangle(0,0,140,138); bd.setStrokeStyle(3,i===0?C.orange:0x333355);
+      const avG=this.add.graphics(); drawCEOPerson(avG,0,-20,3,av.suit,av.skin,av.hair);
+      const nt=this.add.text(0,40,av.name,{fontFamily:"'Press Start 2P'",fontSize:'7px',color:'#FFF',wordWrap:{width:120},align:'center'}).setOrigin(0.5);
+      c.add([bg,bd,avG,nt]);
+      bg.on('pointerdown',()=>{
+        this.selIdx=i;
+        this.cards.forEach((card,j)=>card.bd.setStrokeStyle(3,j===i?C.orange:0x333355));
+        this.tweens.add({targets:c,scaleX:1.06,scaleY:1.06,duration:90,yoyo:true});
+      });
+      bg.on('pointerover',()=>bg.setFillStyle(0x222240));
+      bg.on('pointerout',()=>bg.setFillStyle(C.darkMid));
+      this.cards.push({bd});
+    });
+    const btn=this.add.rectangle(W/2,H-75,260,52,C.orange).setInteractive();
+    this.add.text(W/2,H-75,'▶  START GAME',{fontFamily:"'Press Start 2P'",fontSize:'12px',color:'#FFF'}).setOrigin(0.5).setDepth(1);
+    this.tweens.add({targets:btn,alpha:0.75,duration:900,yoyo:true,repeat:-1});
+    btn.on('pointerdown',()=>this.scene.start('Game',{avatarIndex:this.selIdx}));
+    btn.on('pointerover',()=>btn.setFillStyle(C.orangeLt));
+    btn.on('pointerout',()=>btn.setFillStyle(C.orange));
+    this.add.rectangle(W/2,H-16,W,32,C.darkMid);
+    this.add.text(W/2,H-16,'10 DECISIONS  ·  BUILD THE BEST WORKPLACE!',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#444466'}).setOrigin(0.5);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  GAME SCENE
+// ═══════════════════════════════════════════════════════
+class GameScene extends Phaser.Scene{
+  constructor(){super('Game')}
+  init(d){this.avatarIndex=d.avatarIndex||0}
+
+  create(){
+    this.timeLeft=GAME_DURATION; this.qTimer=Q_INTERVAL;
+    this.qIndex=0; this.qPool=[...QS];
+    this.employees=[]; this.qActive=false; this.over=false;
+    this.totalH=0; this.totalP=0; this.samples=0;
+    this.workerCooldown=0; this.workerActive=false;
+    this.curMaxEmp=BASE_EMP; this.activeDeskCount=BASE_EMP;
+    this.goodChoices=0; this.badChoices=0; this.unlockedThemes={};
+
+    this.deskPool=this._buildDeskPool();
+    this._buildOffice();
+    this._buildDeskColliders();
+    this._spawnEmployees();
+    this._buildHUD();
+    this._buildCEO();
+
+    // Employee ↔ desk collision
+    this.physics.add.collider(this.empGroup,this.deskStatic);
+    // Employee ↔ employee (soft separation)
+    this.physics.add.collider(this.empGroup,this.empGroup);
+
+    this.time.addEvent({delay:3500,loop:true,callback:this._redistribute,callbackScope:this});
+    this.time.addEvent({delay:1000,loop:true,callback:this._tick,callbackScope:this});
+  }
+
+  // ── DESK POSITIONS ─────────────────────────────────
+  _buildDeskPool(){
+    const OY=HUD_H;
+    return[
+      // 8 base desks — left carpet zone (2 col × 4 row)
+      // Col1=65, Col2=150 — desk bodies are 40px wide so corridors are:
+      // left(25px), centre(65px→85 to 130), right(200-170=30px)
+      {x:65, y:OY+62}, {x:150,y:OY+62},
+      {x:65, y:OY+148},{x:150,y:OY+148},
+      {x:65, y:OY+234},{x:150,y:OY+234},
+      {x:65, y:OY+320},{x:150,y:OY+320},
+      // 4 expansion desks
+      {x:65, y:OY+406},{x:150,y:OY+406},
+      {x:65, y:OY+492},{x:150,y:OY+492},
+    ];
+  }
+
+  // ── COLLISION BODIES FOR DESKS ─────────────────────
+  _buildDeskColliders(){
+    this.deskStatic=this.physics.add.staticGroup();
+    for(let i=0;i<this.activeDeskCount;i++){
+      const {x,y}=this.deskPool[i];
+      // Narrow body covers only the desk surface — keeps corridors wide enough to walk through
+      const b=this.add.rectangle(x,y-2,40,26,0,0).setVisible(false);
+      this.physics.add.existing(b,true);
+      this.deskStatic.add(b);
+    }
+    // Meeting table blocker
+    const mt=this.add.rectangle(302,HUD_H+113,60,60,0,0).setVisible(false);
+    this.physics.add.existing(mt,true);
+    this.deskStatic.add(mt);
+    // Divider wall — 3 segments with door gaps at y=185–235 and y=355–405
+    const OYc=HUD_H, offHc=GH-HUD_H-65;
+    [[OYc+44,185],[235,355],[405,OYc+offHc-4]].forEach(([y1,y2])=>{
+      const h=y2-y1, seg=this.add.rectangle(204,y1+h/2,8,h,0,0).setVisible(false);
+      this.physics.add.existing(seg,true); this.deskStatic.add(seg);
+    });
+  }
+
+  // ── OFFICE VISUALS ─────────────────────────────────
+  _buildOffice(){
+    const W=GW,H=GH,OY=HUD_H,offH=H-OY-65;
+
+    // ── Base walls ──
+    const walls=this.add.graphics().setDepth(0);
+    walls.fillStyle(C.wallPaint); walls.fillRect(0,OY,W,offH);
+    walls.fillStyle(C.skirting);
+    walls.fillRect(0,OY,W,5);
+    walls.fillRect(0,OY,5,offH);
+    walls.fillRect(W-5,OY,5,offH);
+    walls.fillRect(0,H-65-5,W,5);
+
+    // ── Windows (top wall, 3 panes) ──
+    [[32,OY+5],[140,OY+5],[248,OY+5]].forEach(([wx,wy])=>{
+      walls.fillStyle(C.winFrame); walls.fillRect(wx,wy,56,38);
+      walls.fillStyle(C.winGlass); walls.fillRect(wx+3,wy+3,50,32);
+      walls.fillStyle(C.winGlassLt);
+      walls.fillRect(wx+4,wy+4,22,14); walls.fillRect(wx+29,wy+4,20,14);
+      walls.fillStyle(C.winFrame);
+      walls.fillRect(wx+28,wy+3,2,32); walls.fillRect(wx+3,wy+20,50,2);
+    });
+
+    // ── Vertical room-divider wall — drawn in 3 sections with 2 door gaps ──
+    // Door 1: y=185-235 (enters meeting room)   Door 2: y=355-405 (enters break room)
+    const drawWallSeg=(y1,y2)=>{
+      walls.fillStyle(C.wallDark); walls.fillRect(200,y1,8,y2-y1);
+      walls.fillStyle(C.skirting); walls.fillRect(200,y1,8,4);
+    };
+    drawWallSeg(OY+44, 185);  // top section
+    drawWallSeg(235,   355);  // middle section
+    drawWallSeg(405,   OY+offH-4); // bottom section
+
+    // Door frames
+    const drawDoorFrame=(dy)=>{
+      walls.fillStyle(C.doorDk);
+      walls.fillRect(198,dy,4,4); walls.fillRect(198,dy+46,4,4); // lintels
+      walls.fillStyle(C.doorCol);
+      walls.fillRect(200,dy,2,50); // door leaf (ajar)
+    };
+    drawDoorFrame(185); drawDoorFrame(355);
+
+    // ── Blue-grey CARPET (left zone) ──
+    const carpet=this.add.graphics().setDepth(1);
+    carpet.fillStyle(C.carpet); carpet.fillRect(6,OY+44,193,offH-48);
+    for(let cy=OY+48;cy<H-68;cy+=18){
+      carpet.fillStyle(C.carpetDk,0.25); carpet.fillRect(6,cy,193,2);
+    }
+    // Carpet border
+    carpet.lineStyle(2,C.carpetDk,0.5);
+    carpet.strokeRect(6,OY+44,193,offH-48);
+
+    // ── Cream floor tiles (right zone) ──
+    const floor=this.add.graphics().setDepth(1);
+    for(let tx=208;tx<W-4;tx+=24)for(let ty=OY+44;ty<H-66;ty+=24){
+      floor.fillStyle(C.floor); floor.fillRect(tx+1,ty+1,22,22);
+      floor.fillStyle(C.floorGrid); floor.fillRect(tx,ty,24,1);floor.fillRect(tx,ty,1,24);
+    }
+
+    // ── RIGHT-TOP: Meeting Room ──
+    this._buildMeetingRoom(208,OY+44,W-213,180);
+
+    // ── RIGHT-BOTTOM: Break Room ──
+    this._buildBreakRoom(208,OY+230,W-213,offH-234);
+    this._buildThemeBits();
+
+    // ── Base desks (8) ──
+    this.deskLayer=this.add.graphics().setDepth(2);
+    for(let i=0;i<BASE_EMP;i++) this._drawDeskAt(this.deskLayer,this.deskPool[i].x,this.deskPool[i].y,false);
+
+    // ── Expansion desk slots (hidden) ──
+    this.expDeskLayers=[];
+    for(let i=BASE_EMP;i<this.deskPool.length;i++){
+      const eg=this.add.graphics().setDepth(2).setAlpha(0);
+      this._drawDeskAt(eg,this.deskPool[i].x,this.deskPool[i].y,false);
+      this.expDeskLayers.push(eg);
+    }
+
+    // ── Filing cabinet (right wall) ──
+    const cab=this.add.graphics().setDepth(2);
+    this._drawFilingCabinet(cab,W-22,OY+62);
+    this._drawFilingCabinet(cab,W-22,OY+140);
+
+    // ── Plants ──
+    const pl=this.add.graphics().setDepth(3);
+    [[10,OY+44],[10,H-100],[W-18,OY+44],[W-18,H-105],[100,H-90]].forEach(([px,py])=>plantAt(pl,px,py));
+
+    // Employee physics group
+    this.empGroup=this.physics.add.group();
+
+    // Wander zones for AI targeting (avoids desk area)
+    this.wanderZones=[
+      {x:105,y:HUD_H+400},{x:105,y:HUD_H+450},{x:60,y:HUD_H+400},
+      {x:260,y:HUD_H+350},{x:300,y:HUD_H+280},{x:310,y:HUD_H+440},
+    ];
+  }
+
+  _buildMeetingRoom(rx,ry,rW,rH){
+    const g=this.add.graphics().setDepth(2);
+    // Room floor (slightly warmer)
+    g.fillStyle(0xDDD5C0); g.fillRect(rx,ry,rW,rH);
+    for(let tx=rx;tx<rx+rW;tx+=20)for(let ty=ry;ty<ry+rH;ty+=20){
+      g.fillStyle(0xCCC5B0);g.fillRect(tx,ty,20,1);g.fillRect(tx,ty,1,20);
+    }
+    this.add.text(rx+rW/2,ry+6,'MEETING ROOM',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#887766'}).setOrigin(0.5,0).setDepth(3);
+
+    // Round table (centre of room)
+    const tx=rx+rW/2, ty=ry+rH/2+5;
+    g.fillStyle(C.tableDark); g.fillCircle(tx,ty,34);
+    g.fillStyle(C.tableRound); g.fillCircle(tx,ty,30);
+    g.fillStyle(0xEEAA60,0.35); g.fillCircle(tx-8,ty-8,14);
+
+    // Notepads
+    [[tx-20,ty-10],[tx+8,ty+8],[tx-4,ty-20]].forEach(([nx,ny])=>{
+      g.fillStyle(0xFFFFF0);g.fillRect(nx,ny,11,15);
+      g.fillStyle(0xCCCCBB);[3,6,9].forEach(d=>{g.fillRect(nx+1,ny+d,9,1);});
+      g.fillStyle(0xFF6600);g.fillRect(nx+8,ny+2,2,2);
+    });
+
+    // Chairs around table (6)
+    const angles=[0,60,120,180,240,300];
+    angles.forEach(a=>{
+      const rad=Phaser.Math.DegToRad(a);
+      const cx=tx+Math.cos(rad)*44, cy=ty+Math.sin(rad)*44;
+      g.fillStyle(C.chairDark); g.fillCircle(cx,cy,10);
+      g.fillStyle(C.chairSeat); g.fillCircle(cx,cy,8);
+      // Chair back indicator
+      g.fillStyle(C.chairDark);
+      g.fillRect(cx+Math.cos(rad)*7-3,cy+Math.sin(rad)*7-3,6,6);
+    });
+
+    this.mtgSeats=angles.map(a=>{
+      const rad=Phaser.Math.DegToRad(a);
+      return{x:tx+Math.cos(rad)*44,y:ty+Math.sin(rad)*44};
+    });
+  }
+
+  _buildBreakRoom(rx,ry,rW,rH){
+    const g=this.add.graphics().setDepth(2);
+    // Warm wood floor
+    g.fillStyle(C.woodFloor); g.fillRect(rx,ry,rW,rH);
+    for(let bx=rx;bx<rx+rW;bx+=32)for(let by=ry;by<ry+rH;by+=12){
+      g.fillStyle(by%24===0?C.woodDk:C.woodFloor);g.fillRect(bx,by,31,11);
+    }
+    this.add.text(rx+rW/2,ry+8,'BREAK ROOM',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#887744'}).setOrigin(0.5,0).setDepth(3);
+
+    // Ping pong table
+    const ptx=rx+rW/2, pty=ry+rH/2+12;
+    g.fillStyle(0x111111); g.fillRect(ptx-44,pty-23,88,46);
+    g.fillStyle(C.pingBlue); g.fillRect(ptx-42,pty-21,84,42);
+    g.fillStyle(0xFFFFFF);
+    g.fillRect(ptx-1,pty-21,2,42); // net
+    g.fillRect(ptx-42,pty-1,84,2); // centre line
+    g.fillStyle(0xFFFFBB); g.fillCircle(ptx+16,pty-9,4); // ball
+    // Paddles
+    g.fillStyle(0xCC2222);g.fillRect(ptx+30,pty-18,11,14);
+    g.fillStyle(0x884422);g.fillRect(ptx+33,pty-4,5,8);
+    g.fillStyle(0x2222CC);g.fillRect(ptx-41,pty+4,11,14);
+    g.fillStyle(0x884422);g.fillRect(ptx-38,pty+18,5,8);
+
+    // Noticeboard
+    const nbx=rx+8,nby=ry+14;
+    g.fillStyle(0x88552A);g.fillRect(nbx,nby,62,48);
+    g.fillStyle(0xCCA060);g.fillRect(nbx+2,nby+2,58,44);
+    // Sticky notes
+    [[0xFFFF88,6,4,14,12],[0xFFAAAA,26,14,14,12],[0xAAFFAA,44,6,14,12],[0xAADDFF,8,28,18,12]].forEach(([col,nx,ny,nw,nh])=>{
+      g.fillStyle(col);g.fillRect(nbx+nx,nby+ny,nw,nh);
+    });
+    // Push pins
+    [[10,8],[30,18],[48,10],[14,32]].forEach(([px,py])=>{
+      g.fillStyle(0xFF4444);g.fillCircle(nbx+px,nby+py,2);
+    });
+
+    // Sofa
+    const sx=rx+8,sy=ry+rH-38;
+    g.fillStyle(0x445566);g.fillRect(sx,sy,80,28);
+    g.fillStyle(0x556677);g.fillRect(sx+2,sy+2,76,20);
+    g.fillStyle(0x445566);g.fillRect(sx,sy,8,28);g.fillRect(sx+72,sy,8,28);
+
+    this.breakSeats=[
+      {x:ptx-58,y:pty},{x:ptx+58,y:pty},
+      {x:ptx,y:pty-38},{x:ptx,y:pty+40},
+      {x:sx+20,y:sy+14},{x:sx+60,y:sy+14},
+    ];
+  }
+
+  _buildThemeBits(){
+    this.themeBits={};
+    this.clutterLayer=this.add.container(0,0).setDepth(4);
+    const addBit=(key,draw)=>{
+      const c=this.add.container(0,0).setDepth(3).setAlpha(0);
+      const g=this.add.graphics();
+      c.add(g);
+      draw(g,c);
+      this.themeBits[key]=c;
+    };
+
+    addBit('coffee',(g,c)=>{
+      g.fillStyle(0x6A4A2A);g.fillRect(248,GH-178,70,28);
+      g.fillStyle(0xEFEFEF);g.fillRect(256,GH-206,18,28);
+      g.fillStyle(0x222222);g.fillRect(260,GH-201,10,6);
+      g.fillStyle(C.orange);g.fillRect(280,GH-198,22,16);
+      g.fillStyle(0xFFFFFF);g.fillRect(286,GH-194,10,7);
+      c.add(this.add.text(283,GH-220,'KITCHEN',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#665533'}).setOrigin(0.5));
+    });
+    addBit('tech',(g,c)=>{
+      this.deskPool.slice(0,8).forEach((d,i)=>{
+        g.fillStyle(i%2?0x55DDFF:0x06D6A0,0.85);
+        g.fillRect(d.x-11,d.y-26,22,14);
+        g.fillStyle(0xFFFFFF,0.35);g.fillRect(d.x-10,d.y-25,8,5);
+      });
+      c.add(this.add.text(107,HUD_H+32,'UPGRADED TECH',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:C.tH}).setOrigin(0.5));
+    });
+    addBit('learning',(g,c)=>{
+      g.fillStyle(0x7A4A20);g.fillRect(214,HUD_H+600,92,34);
+      g.fillStyle(0xFFFFFF);g.fillRect(222,HUD_H+607,18,20);
+      g.fillStyle(0xAAEEFF);g.fillRect(246,HUD_H+607,18,20);
+      g.fillStyle(0xFFFF88);g.fillRect(270,HUD_H+607,18,20);
+      g.fillStyle(0x664422);g.fillRect(216,HUD_H+633,88,4);
+      c.add(this.add.text(260,HUD_H+590,'LEARNING HUB',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#665533'}).setOrigin(0.5));
+    });
+    addBit('trophy',(g,c)=>{
+      g.fillStyle(0x88552A);g.fillRect(270,HUD_H+50,72,42);
+      g.fillStyle(0xFFD60A);[286,306,326].forEach((x,i)=>{
+        g.fillRect(x,HUD_H+61,11,14);g.fillRect(x-3,HUD_H+64,17,5);
+        g.fillStyle(0xAA7733);g.fillRect(x+1,HUD_H+75,9,5);
+        g.fillStyle(0xFFD60A);
+      });
+      c.add(this.add.text(306,HUD_H+39,'TROPHY WALL',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#665533'}).setOrigin(0.5));
+    });
+    addBit('green',(g,c)=>{
+      [[186,HUD_H+178],[186,HUD_H+348],[340,HUD_H+445],[228,HUD_H+452]].forEach(([x,y])=>plantAt(g,x,y));
+      g.fillStyle(0x2D8A42);g.fillRect(332,HUD_H+520,28,34);
+      g.fillStyle(0xFFFFFF);g.fillRect(338,HUD_H+526,16,4);g.fillRect(338,HUD_H+535,16,4);
+      c.add(this.add.text(346,HUD_H+512,'RECYCLE',{fontFamily:"'Press Start 2P'",fontSize:'4px',color:'#FFFFFF'}).setOrigin(0.5));
+    });
+    addBit('chill',(g,c)=>{
+      g.fillStyle(0x5B6E90);g.fillRect(240,GH-92,88,28);
+      g.fillStyle(0x6F82A6);g.fillRect(244,GH-88,80,18);
+      g.fillStyle(C.orange);g.fillRect(332,GH-92,22,28);
+      g.fillStyle(0xFFFFFF);g.fillRect(335,GH-88,16,8);
+      c.add(this.add.text(295,GH-104,'CHILL ZONE',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#665533'}).setOrigin(0.5));
+    });
+    addBit('ideas',(g,c)=>{
+      g.fillStyle(0x88552A);g.fillRect(212,HUD_H+190,74,54);
+      g.fillStyle(0xCCA060);g.fillRect(215,HUD_H+193,68,48);
+      [[0xFFFF88,220,HUD_H+198],[0xAAFFAA,246,HUD_H+202],[0xFFAAAA,224,HUD_H+219],[0xAADDFF,252,HUD_H+222]].forEach(([col,x,y])=>{g.fillStyle(col);g.fillRect(x,y,20,12);});
+      c.add(this.add.text(249,HUD_H+180,'IDEAS BOARD',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#665533'}).setOrigin(0.5));
+    });
+  }
+
+  _unlockTheme(key){
+    if(!key||key==='empty'||this.unlockedThemes[key])return;
+    if(key==='clutter'||key==='dead'){this._addClutter(key);return;}
+    const bit=this.themeBits[key];
+    if(!bit)return;
+    this.unlockedThemes[key]=true;
+    this.tweens.add({targets:bit,alpha:1,duration:450,ease:'Sine.easeOut'});
+    this._float(GW/2,HUD_H+72,`+ ${key.toUpperCase()}`,C.gH,7);
+  }
+
+  _addClutter(kind='clutter'){
+    this.badChoices++;
+    const g=this.add.graphics();
+    const spots=[[34,HUD_H+145],[178,HUD_H+235],[52,HUD_H+500],[176,HUD_H+530],[326,HUD_H+610]];
+    const [x,y]=spots[(this.badChoices-1)%spots.length];
+    if(kind==='dead'){
+      g.fillStyle(0x7A4A20);g.fillRect(x-7,y,14,10);
+      g.fillStyle(0x6B5A20);g.fillRect(x-2,y-17,4,17);
+      g.fillStyle(0x8A7A30);g.fillRect(x-10,y-12,8,3);g.fillRect(x+2,y-8,8,3);
+    }else{
+      g.fillStyle(0x777777);g.fillRect(x-10,y-4,20,16);
+      g.fillStyle(0x999999);g.fillRect(x-6,y-9,15,8);
+      g.fillStyle(0x555555);g.fillRect(x+8,y,8,11);
+    }
+    this.clutterLayer.add(g);
+    this._float(x,y-18,kind==='dead'?'Dead plant':'Clutter',C.rH,6);
+  }
+
+  _drawDeskAt(g,x,y){
+    // Desktop (orange-brown)
+    g.fillStyle(C.deskTop); g.fillRect(x-26,y-14,52,32);
+    // Desk sides / depth
+    g.fillStyle(C.deskSide);
+    g.fillRect(x-26,y+18,52,7);
+    g.fillRect(x-26,y-14,4,32); g.fillRect(x+22,y-14,4,32);
+    // Monitor
+    g.fillStyle(C.screenBg); g.fillRect(x-13,y-28,26,18);
+    g.fillStyle(C.screenGlow); g.fillRect(x-11,y-26,22,14);
+    g.fillStyle(0x88EEFF,0.3); g.fillRect(x-11,y-26,10,6);
+    g.fillStyle(C.deskSide); g.fillRect(x-2,y-10,4,5); // stand
+    // Keyboard
+    g.fillStyle(0xCCCCDD); g.fillRect(x-11,y+1,22,9);
+    g.fillStyle(0xAAAABB);
+    for(let kx=x-9;kx<x+10;kx+=5){g.fillRect(kx,y+3,4,2);g.fillRect(kx,y+7,4,2);}
+    // Chair behind desk
+    g.fillStyle(C.chairDark); g.fillRect(x-14,y+28,28,18);
+    g.fillStyle(C.chairSeat); g.fillRect(x-12,y+30,24,14);
+    // Chair back
+    g.fillStyle(C.chairDark); g.fillRect(x-10,y+44,20,6);
+    // Wheels
+    g.fillStyle(0x111111);[-9,0,9].forEach(ox=>g.fillRect(x+ox-1,y+49,3,3));
+  }
+
+  _drawFilingCabinet(g,x,y){
+    g.fillStyle(C.cab);g.fillRect(x-14,y,28,54);
+    g.fillStyle(C.cabDk);g.fillRect(x-14,y,28,3);
+    [0,19,38].forEach(dy=>{
+      g.fillStyle(0xC87A30);g.fillRect(x-12,y+4+dy,24,15);
+      g.fillStyle(0x886020);g.fillRect(x-5,y+10+dy,10,4);
+    });
+  }
+
+  // ── EMPLOYEES ──────────────────────────────────────
+  _spawnEmployees(){
+    for(let i=0;i<BASE_EMP;i++){
+      const p=this.deskPool[i];
+      const emp=new Employee(this,i,p.x,p.y+25);
+      emp.setTarget(p.x,p.y+25);
+      this.employees.push(emp);
+      this.empGroup.add(emp.body);
+    }
+  }
+
+  // ── REDISTRIBUTE (AI target assignment) ────────────
+  _redistribute(){
+    if(this.over||this.qActive||this.workerActive)return;
+    const active=this.employees.filter(e=>!e.isLeaving&&!e.departed);
+    active.forEach((emp,i)=>{
+      const r=Math.random();
+      // Desk probability scales 0.10→0.75 with productivity (0→100)
+      const deskChance=0.10+(emp.productivity/100)*0.65;
+      if(r<deskChance){
+        const d=this.deskPool[Math.min(emp.id,this.activeDeskCount-1)];
+        emp.setTarget(d.x,d.y+25); emp.iconT.setText('💻');
+      }else if(r<deskChance+0.12&&this.mtgSeats){
+        const s=this.mtgSeats[i%this.mtgSeats.length];
+        emp.setTarget(s.x,s.y); emp.iconT.setText('🗣️');
+      }else if(r<deskChance+0.22&&this.breakSeats){
+        const s=this.breakSeats[i%this.breakSeats.length];
+        emp.setTarget(s.x,s.y); emp.iconT.setText('🏓');
+      }else if(r<deskChance+0.38){
+        const wz=this.wanderZones[Phaser.Math.Between(0,this.wanderZones.length-1)];
+        emp.setTarget(wz.x+Phaser.Math.Between(-25,25),wz.y+Phaser.Math.Between(-20,20));
+        emp.iconT.setText('');
+      }else{
+        emp.setTarget(30+Math.random()*140,HUD_H+320+Math.random()*100);
+        emp.iconT.setText('💬');
+      }
+    });
+  }
+
+  // ── HUD ────────────────────────────────────────────
+  _buildHUD(){
+    const W=GW;
+    this.add.rectangle(W/2,HUD_H/2,W,HUD_H,C.panel).setDepth(10);
+    const hb=this.add.graphics().setDepth(10);
+    hb.lineStyle(2,C.orange);hb.strokeRect(0,0,W,HUD_H);
+    const lS={fontFamily:"'Press Start 2P'",fontSize:'7px',color:'#6F7080'};
+    const vS={fontFamily:"'Press Start 2P'",fontSize:'12px',color:'#FFF'};
+    this.add.text(10,8,'STAFF',lS).setDepth(11);
+    this.staffT=this.add.text(10,23,`${BASE_EMP}/${BASE_EMP}`,{...vS,color:C.tH}).setDepth(11);
+    this.add.text(94,8,'HAPPY',lS).setDepth(11);
+    this.happyT=this.add.text(94,23,'70%',{...vS,color:C.gH}).setDepth(11);
+    this.add.text(192,8,'PRODUCTIVE',lS).setDepth(11);
+    this.prodT=this.add.text(192,23,'70%',{...vS,color:C.oH}).setDepth(11);
+    this.add.text(W-62,8,'TIME',lS).setDepth(11);
+    this.timerT=this.add.text(W-62,23,'5:00',{...vS}).setDepth(11);
+    const bY=63;
+    this.add.text(10,bY-6,'HAPPINESS',{...lS,fontSize:'5px'}).setDepth(11);
+    this.add.rectangle(82,bY,105,13,0x222233).setDepth(11).setOrigin(0,0.5);
+    this.hBar=this.add.rectangle(82,bY,74,13,C.green).setDepth(12).setOrigin(0,0.5);
+    this.add.text(198,bY-6,'PRODUCTIVITY',{...lS,fontSize:'5px'}).setDepth(11);
+    this.add.rectangle(292,bY,70,13,0x222233).setDepth(11).setOrigin(0,0.5);
+    this.pBar=this.add.rectangle(292,bY,49,13,C.orange).setDepth(12).setOrigin(0,0.5);
+  }
+
+  _refreshHUD(){
+    const a=this.employees.filter(e=>!e.isLeaving&&!e.departed), n=a.length;
+    const avgH=n?a.reduce((s,e)=>s+e.happiness,0)/n:0;
+    const avgP=n?a.reduce((s,e)=>s+e.productivity,0)/n:0;
+    this.staffT.setText(`${n}/${this.curMaxEmp}`);
+    this.staffT.setColor(n>4?C.tH:n>2?C.yH:C.rH);
+    this.happyT.setText(`${Math.round(avgH)}%`);
+    this.happyT.setColor(avgH>60?C.gH:avgH>30?C.yH:C.rH);
+    this.prodT.setText(`${Math.round(avgP)}%`);
+    this.prodT.setColor(avgP>60?C.oH:avgP>30?C.yH:C.rH);
+    const m=Math.floor(this.timeLeft/60),s=this.timeLeft%60;
+    this.timerT.setText(`${m}:${s.toString().padStart(2,'0')}`);
+    this.timerT.setColor(this.timeLeft<=30?C.rH:this.timeLeft<=60?C.yH:'#FFF');
+    this.hBar.setSize(Math.max(1,(avgH/100)*105),13);
+    this.hBar.setFillStyle(avgH>60?C.green:avgH>30?C.yellow:C.red);
+    this.pBar.setSize(Math.max(1,(avgP/100)*70),13);
+    this.pBar.setFillStyle(avgP>60?C.orange:avgP>30?C.yellow:C.red);
+    this.totalH+=avgH; this.totalP+=avgP; this.samples++;
+    return{avgH,avgP,n};
+  }
+
+  // ── CEO AVATAR ─────────────────────────────────────
+  _buildCEO(){
+    const av=AVATARS[this.avatarIndex], cx=GW-48,cy=GH-38;
+    const bg=this.add.rectangle(cx,cy,78,62,C.panel,0.92).setDepth(10);
+    bg.setStrokeStyle(2,C.orange);
+    this.add.text(cx,GH-12,'YOU',{fontFamily:"'Press Start 2P'",fontSize:'7px',color:C.oH}).setOrigin(0.5).setDepth(11);
+    this.ceoG=this.add.graphics().setDepth(11);
+    drawCEOPerson(this.ceoG,cx,cy-10,2,av.suit,av.skin,av.hair);
+    this.tweens.add({targets:this.ceoG,y:'-=4',duration:550,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
+  }
+
+  // ── GAME TICK ──────────────────────────────────────
+  _tick(){
+    if(this.over||this.qActive)return;
+    this.timeLeft--; this.qTimer--;
+    if(this.workerCooldown>0)this.workerCooldown--;
+    const{avgH,avgP,n}=this._refreshHUD();
+    this._checkLeaving();
+    this._checkWorkman(avgH,avgP,n);
+    if(this.qTimer<=0&&this.qIndex<this.qPool.length){
+      this.qTimer=Q_INTERVAL; this._showQuestion(); return;
+    }
+    const alive=this.employees.filter(e=>!e.isLeaving&&!e.departed).length;
+    if(alive===0){this._endGame(false);return;}
+    if(this.timeLeft<=0){this._endGame(true);return;}
+  }
+
+  _checkLeaving(){
+    this.employees.filter(e=>!e.isLeaving&&!e.departed&&e.happiness<20).forEach(emp=>{
+      if(Math.random()<0.06){emp.startLeaving();this._float(emp.x,emp.y-30,'🚪 Resigned!',C.rH);}
+    });
+  }
+
+  // ── WORKMAN ────────────────────────────────────────
+  _checkWorkman(avgH,avgP,n){
+    if(this.workerActive||this.workerCooldown>0)return;
+    if(this.curMaxEmp>=MAX_EMP)return;
+    if(avgH>=68&&avgP>=68){this.workerCooldown=55;this._spawnWorkman();}
+  }
+
+  _spawnWorkman(){
+    this.workerActive=true;
+    const slot=this.activeDeskCount, desk=this.deskPool[slot];
+    if(!desk){this.workerActive=false;return;}
+    this._float(GW/2,HUD_H+30,'🔨 New hire incoming!',C.gH);
+
+    // Enter from bottom-left corner (desks are on left carpet zone)
+    const wc=this.add.container(-20,GH-100).setDepth(8);
+    const wg=this.add.graphics();
+    // Hard hat
+    wg.fillStyle(0xFFDD00);wg.fillRect(-5,-14,12,4);wg.fillRect(-6,-16,14,4);
+    // Head
+    wg.fillStyle(0xFFCFA0);wg.fillRect(-4,-10,8,8);
+    wg.fillStyle(0);wg.fillRect(-2,-7,2,2);wg.fillRect(2,-7,2,2);wg.fillRect(-1,-3,4,1);
+    // Hi-vis body
+    wg.fillStyle(0xFF8800);wg.fillRect(-5,0,10,10);
+    wg.fillStyle(0xFFFF00);wg.fillRect(-5,2,10,2);wg.fillRect(-5,7,10,2);
+    // Arms + wrench
+    wg.fillStyle(0xFF8800);wg.fillRect(-7,1,2,7);wg.fillRect(5,1,2,7);
+    wg.fillStyle(0xFFCFA0);wg.fillRect(-7,7,2,2);wg.fillRect(5,7,2,2);
+    wg.fillStyle(0xAAAAAA);wg.fillRect(5,7,2,8);wg.fillRect(3,7,6,3);
+    // Legs
+    wg.fillStyle(0x224499);wg.fillRect(-4,10,3,6);wg.fillRect(1,10,3,6);
+    wg.fillStyle(0x111111);wg.fillRect(-5,15,4,2);wg.fillRect(0,15,4,2);
+    wc.add(wg);
+    wc.add(this.add.text(0,-28,'🔨',{fontSize:'12px'}).setOrigin(0.5));
+    this.tweens.add({targets:wc,y:'+=3',duration:200,yoyo:true,repeat:-1});
+
+    this.tweens.add({targets:wc,x:desk.x+30,duration:2200,ease:'Linear',onComplete:()=>{
+      let cnt=0;
+      const iv=setInterval(()=>{
+        cnt++;
+        this._float(desk.x+(Math.random()*40-20),desk.y+(Math.random()*30-15),
+          ['🔨','⚙️','🪛','✨'][cnt%4],C.yH,9);
+        if(cnt>=5){
+          clearInterval(iv);
+          // Reveal desk graphic
+          const egi=slot-BASE_EMP;
+          if(this.expDeskLayers[egi])this.tweens.add({targets:this.expDeskLayers[egi],alpha:1,duration:400});
+          // Add collider for new desk
+          const{x,y}=desk;
+          const nb=this.add.rectangle(x,y-2,40,26,0,0).setVisible(false);
+          this.physics.add.existing(nb,true); this.deskStatic.add(nb);
+          this.activeDeskCount++; this.curMaxEmp++;
+          setTimeout(()=>this._spawnNewEmp(slot),600);
+          this.tweens.add({targets:wc,x:-40,duration:1800,ease:'Linear',
+            onComplete:()=>{wc.destroy(true);this.workerActive=false;}});
+        }
+      },500);
+    }});
+  }
+
+  _spawnNewEmp(deskIdx){
+    const p=this.deskPool[deskIdx];
+    const newId=this.employees.length;
+    const emp=new Employee(this,newId%EMP_T.length,-20,GH-80);
+    emp.happiness=85;emp.productivity=80;
+    emp.setTarget(p.x,p.y+25);
+    emp.redrawFace();
+    this.employees.push(emp);
+    this.empGroup.add(emp.body);
+    this._float(p.x,p.y-25,'👋 New hire!',C.gH);
+  }
+
+  // ── QUESTION MODAL ─────────────────────────────────
+  _showQuestion(){
+    this.qActive=true;
+    const q=this.qPool[this.qIndex++], W=GW,H=GH,cardH=335,midY=H/2;
+    const ui=this.add.container(0,0).setDepth(30);
+    const dim=this.add.rectangle(W/2,H/2,W,H,0,0.80);
+    const card=this.add.rectangle(W/2,midY,W-16,cardH,C.panel);
+    const border=this.add.rectangle(W/2,midY,W-16,cardH); border.setStrokeStyle(3,C.orange);
+    const qn=this.add.text(W/2,midY-cardH/2+12,`DECISION ${this.qIndex}/${this.qPool.length}`,{fontFamily:"'Press Start 2P'",fontSize:'7px',color:C.oH}).setOrigin(0.5);
+    const ic=this.add.text(W/2,midY-cardH/2+38,q.i,{fontSize:'28px'}).setOrigin(0.5);
+    const qt=this.add.text(W/2,midY-cardH/2+80,q.t,{fontFamily:"'Press Start 2P'",fontSize:'9px',color:'#FFF',align:'center',wordWrap:{width:W-44}}).setOrigin(0.5,0);
+    ui.add([dim,card,border,qn,ic,qt]);
+    const cols=[C.orange,0x4361EE,0x7B2FBE], by0=midY-cardH/2+168;
+    q.o.forEach((opt,idx)=>{
+      const by=by0+idx*54, col=cols[idx];
+      const btn=this.add.rectangle(W/2,by,W-44,46,col).setInteractive();
+      const bt=this.add.text(W/2,by,opt.l,{fontFamily:"'Press Start 2P'",fontSize:'8px',color:'#FFF',wordWrap:{width:W-66},align:'center'}).setOrigin(0.5);
+      btn.on('pointerdown',()=>{ui.destroy(true);this._applyChoice(opt);this.qActive=false;});
+      btn.on('pointerover',()=>{const lc=Phaser.Display.Color.ValueToColor(col);lc.lighten(25);btn.setFillStyle(lc.color);});
+      btn.on('pointerout',()=>btn.setFillStyle(col));
+      ui.add([btn,bt]);
+    });
+    this.tweens.add({targets:[card,border],scaleX:{from:0.85,to:1},scaleY:{from:0.85,to:1},duration:180,ease:'Back.easeOut'});
+  }
+
+  _applyChoice(opt){
+    this.employees.filter(e=>!e.isLeaving&&!e.departed).forEach(emp=>{
+      emp.applyEffect(opt.h+(Math.random()*8-4),opt.p+(Math.random()*8-4));
+    });
+    if(opt.h+opt.p>=15){
+      this.goodChoices++;
+      this._unlockTheme(opt.v);
+    }else if(opt.h+opt.p<0){
+      this._unlockTheme(opt.v);
+    }else if(opt.v&&opt.v!=='empty'){
+      this._unlockTheme(opt.v);
+    }
+    this._showFeedback(opt.m,opt.h+opt.p>=0);
+    if(this.qIndex>=this.qPool.length){
+      this.time.delayedCall(3600,()=>{if(!this.over)this._endGame(true);});
+    }
+  }
+
+  _showFeedback(msg,positive){
+    const fb=this.add.container(0,0).setDepth(25);
+    const speaker=this._pickSpeaker();
+    const bg=this.add.rectangle(GW/2,GH-104,GW-20,66,C.panel,0.96);
+    bg.setStrokeStyle(2,positive?C.orange:C.red);
+    const name=this.add.text(22,GH-132,speaker?`${speaker.empName}:`:'TEAM:',{fontFamily:"'Press Start 2P'",fontSize:'7px',color:positive?C.gH:C.rH});
+    const txt=this.add.text(GW/2,GH-105,`"${msg}"`,{fontFamily:"'Press Start 2P'",fontSize:'8px',color:'#FFF',wordWrap:{width:GW-44},align:'center'}).setOrigin(0.5);
+    if(speaker)this._float(speaker.x,speaker.y-42,'💬',positive?C.gH:C.rH,11);
+    fb.add([bg,name,txt]);
+    this.time.delayedCall(2600,()=>this.tweens.add({targets:fb,alpha:0,duration:400,onComplete:()=>fb.destroy(true)}));
+  }
+
+  _pickSpeaker(){
+    const active=this.employees.filter(e=>!e.isLeaving&&!e.departed);
+    return active.length?active[Phaser.Math.Between(0,active.length-1)]:null;
+  }
+
+  _float(x,y,msg,color,sz=9){
+    const t=this.add.text(x,y,msg,{fontFamily:"'Press Start 2P'",fontSize:`${sz}px`,color}).setOrigin(0.5).setDepth(28);
+    this.tweens.add({targets:t,y:y-50,alpha:0,duration:1500,onComplete:()=>t.destroy()});
+  }
+
+  _endGame(won){
+    this.over=true;
+    const a=this.employees.filter(e=>!e.isLeaving&&!e.departed);
+    const avgH=this.samples?this.totalH/this.samples:0;
+    const avgP=this.samples?this.totalP/this.samples:0;
+    const score=Math.round((avgH*0.4+avgP*0.4+(a.length/MAX_EMP)*100)*(won?1:0.5));
+    this.time.delayedCall(1200,()=>this.scene.start('End',{won,score,avgH:Math.round(avgH),avgP:Math.round(avgP),retained:a.length,avatarIndex:this.avatarIndex}));
+  }
+
+  update(time,delta){
+    if(this.over)return;
+    this.employees=this.employees.filter(emp=>!emp.update(time,delta));
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  END SCENE
+// ═══════════════════════════════════════════════════════
+class EndScene extends Phaser.Scene{
+  constructor(){super('End')}
+  init(d){this.won=d.won;this.score=d.score;this.avgH=d.avgH;this.avgP=d.avgP;this.retained=d.retained;this.ai=d.avatarIndex;}
+  create(){
+    const W=GW,H=GH,av=AVATARS[this.ai];
+    this.add.rectangle(W/2,H/2,W,H,C.dark);
+    const gr=this.add.graphics();gr.lineStyle(1,0x1A1A2E,0.4);
+    for(let x=0;x<=W;x+=16)gr.lineBetween(x,0,x,H);
+    for(let y=0;y<=H;y+=16)gr.lineBetween(0,y,W,y);
+    this.add.rectangle(W/2,0,W,4,this.won?C.green:C.red).setOrigin(0.5,0);
+    const legend=this.score>=85, good=this.score>=55;
+    const tc=legend?C.gH:good?C.yH:C.rH;
+    const title=legend?'🤩 CEO LEGEND':good?'🙂 GOOD WORKPLACE':'😟 WORKPLACE CRISIS';
+    const sub=legend?'Best CEO ever!':good?'This is a pretty good place.':'I might look for another job...';
+    this.add.text(W/2,62,title,{fontFamily:"'Press Start 2P'",fontSize:'18px',color:tc,stroke:'#000',strokeThickness:5}).setOrigin(0.5);
+    this.add.text(W/2,100,sub,{fontFamily:"'Press Start 2P'",fontSize:'8px',color:'#888899',align:'center',wordWrap:{width:W-34}}).setOrigin(0.5);
+    const sc=this.score>=70?C.gH:this.score>=40?C.yH:C.rH;
+    this.add.text(W/2,148,'YOUR SCORE',{fontFamily:"'Press Start 2P'",fontSize:'9px',color:'#555566'}).setOrigin(0.5);
+    const st=this.add.text(W/2,195,`${this.score}`,{fontFamily:"'Press Start 2P'",fontSize:'56px',color:sc,stroke:'#000',strokeThickness:7}).setOrigin(0.5);
+    this.tweens.add({targets:st,scaleX:1.08,scaleY:1.08,duration:700,yoyo:true,repeat:-1});
+    const rk=this.score>=88?'S RANK — LEGENDARY CEO! 🌟':this.score>=72?'A RANK — GREAT LEADER! 💪':this.score>=56?'B RANK — SOLID MANAGER':this.score>=40?'C RANK — NEEDS WORK...':'D RANK — FIRE YOURSELF 😬';
+    this.add.text(W/2,248,rk,{fontFamily:"'Press Start 2P'",fontSize:'8px',color:sc}).setOrigin(0.5);
+    const pY=278;
+    this.add.rectangle(W/2,pY+75,W-30,150,C.darkMid).setOrigin(0.5,0);
+    this.add.rectangle(W/2,pY+75,W-30,150,0,0).setStrokeStyle(2,0x333355).setOrigin(0.5,0);
+    [{label:'😊 Avg Happiness',val:`${this.avgH}%`,col:this.avgH>60?C.gH:C.rH},{label:'⚡ Avg Productivity',val:`${this.avgP}%`,col:this.avgP>60?C.oH:C.rH},{label:'👥 Staff Retained',val:`${this.retained}/${MAX_EMP}`,col:this.retained>4?C.tH:C.rH}].forEach((s,i)=>{
+      const sy=pY+95+i*40;
+      this.add.text(24,sy,s.label,{fontFamily:"'Press Start 2P'",fontSize:'7px',color:'#666677'});
+      this.add.text(W-24,sy+2,s.val,{fontFamily:"'Press Start 2P'",fontSize:'11px',color:s.col}).setOrigin(1,0);
+      if(i<2){const dv=this.add.graphics();dv.lineStyle(1,0x222233);dv.lineBetween(20,sy+32,W-20,sy+32);}
+    });
+    const btn=this.add.rectangle(W/2,H-95,265,52,C.orange).setInteractive();
+    this.add.text(W/2,H-95,'▶  PLAY AGAIN',{fontFamily:"'Press Start 2P'",fontSize:'12px',color:'#FFF'}).setOrigin(0.5).setDepth(1);
+    this.tweens.add({targets:btn,alpha:0.75,duration:900,yoyo:true,repeat:-1});
+    btn.on('pointerdown',()=>this.scene.start('AvatarSelect'));
+    btn.on('pointerover',()=>btn.setFillStyle(C.orangeLt));
+    btn.on('pointerout',()=>btn.setFillStyle(C.orange));
+    const cg=this.add.graphics().setDepth(5);
+    drawCEOPerson(cg,W-38,H-48,2,av.suit,av.skin,av.hair);
+    this.tweens.add({targets:cg,y:'-=4',duration:550,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
+    this.add.rectangle(W/2,H-20,W,40,C.darkMid);
+    this.add.text(W/2,H-20,'holidayextras.com',{fontFamily:"'Press Start 2P'",fontSize:'6px',color:'#333355'}).setOrigin(0.5);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  LAUNCH
+// ═══════════════════════════════════════════════════════
+document.fonts.ready.then(()=>{
+  window._game=new Phaser.Game({
+    type:Phaser.AUTO,
+    backgroundColor:'#1A1410',
+    physics:{default:'arcade',arcade:{gravity:{y:0},debug:false}},
+    scale:{mode:Phaser.Scale.NONE,width:GW,height:GH},
+    scene:[BootScene,AvatarSelectScene,GameScene,EndScene],
+  });
+});
+</script>
+</body>
+</html>

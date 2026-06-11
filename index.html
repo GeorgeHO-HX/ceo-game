@@ -496,10 +496,7 @@ class GameScene extends Phaser.Scene{
     this._buildHUD();
     this._buildCEO();
 
-    // Employee ↔ desk collision
-    this.physics.add.collider(this.empGroup,this.deskStatic,this._onEmployeeBlocked,null,this);
-    // Employee ↔ employee (soft separation)
-    this.physics.add.collider(this.empGroup,this.empGroup);
+    // Movement is lane-routed; hard physics collisions made characters visibly bump into furniture.
 
     this.time.addEvent({delay:3500,loop:true,callback:this._redistribute,callbackScope:this});
     this.time.addEvent({delay:1000,loop:true,callback:this._tick,callbackScope:this});
@@ -761,15 +758,14 @@ class GameScene extends Phaser.Scene{
     };
 
     addBit('coffee',(g,c)=>{
-      g.lineStyle(3,0x553311);g.strokeRect(226,GH-220,124,72);
-      g.fillStyle(0x6A4A2A);g.fillRect(232,GH-182,108,34);
-      g.fillStyle(0x3A2614);g.fillRect(232,GH-148,108,6);
-      g.fillStyle(0xEFEFEF);g.fillRect(244,GH-216,24,34);
-      g.fillStyle(0x222222);g.fillRect(250,GH-208,12,8);
-      g.fillStyle(C.orange);g.fillRect(278,GH-204,32,22);
-      g.fillStyle(0xFFFFFF);g.fillRect(287,GH-198,13,9);
-      g.fillStyle(0x88CCFF);g.fillRect(316,GH-212,18,30);
-      c.add(this.add.text(288,GH-235,'NEW KITCHEN',{fontFamily:"'Press Start 2P'",fontSize:'6px',color:'#5A3518'}).setOrigin(0.5));
+      const x=322,y=HUD_H+300;
+      g.lineStyle(2,0x553311);g.strokeRect(x-31,y-23,62,46);
+      g.fillStyle(0x6A4A2A);g.fillRect(x-27,y+3,54,17);
+      g.fillStyle(0xEFEFEF);g.fillRect(x-22,y-18,14,21);
+      g.fillStyle(0x222222);g.fillRect(x-18,y-13,7,5);
+      g.fillStyle(C.orange);g.fillRect(x+1,y-12,19,13);
+      g.fillStyle(0xFFFFFF);g.fillRect(x+7,y-8,7,5);
+      c.add(this.add.text(x,y-34,'KITCHEN',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#5A3518'}).setOrigin(0.5));
     });
     addBit('tech',(g,c)=>{
       this.deskPool.slice(0,8).forEach((d,i)=>{
@@ -782,16 +778,15 @@ class GameScene extends Phaser.Scene{
       c.add(this.add.text(107,HUD_H+31,'UPGRADED TECH',{fontFamily:"'Press Start 2P'",fontSize:'6px',color:C.tH,stroke:'#000',strokeThickness:2}).setOrigin(0.5));
     });
     addBit('learning',(g,c)=>{
-      const y=GH-176;
-      g.lineStyle(3,0x4A2A10);g.strokeRect(212,y-12,118,66);
-      g.fillStyle(0x7A4A20);g.fillRect(218,y+22,104,34);
-      g.fillStyle(0xFFFFFF);g.fillRect(228,y+29,22,21);
-      g.fillStyle(0xAAEEFF);g.fillRect(256,y+29,22,21);
-      g.fillStyle(0xFFFF88);g.fillRect(284,y+29,22,21);
-      g.fillStyle(0x664422);g.fillRect(220,y+55,100,5);
-      g.fillStyle(0x222233);g.fillRect(232,y-2,70,20);
-      g.fillStyle(0x55DDFF);g.fillRect(236,y+2,62,12);
-      c.add(this.add.text(270,y-25,'LEARNING HUB',{fontFamily:"'Press Start 2P'",fontSize:'6px',color:'#5A3518'}).setOrigin(0.5));
+      const x=262,y=GH-122;
+      g.lineStyle(2,0x4A2A10);g.strokeRect(x-48,y-30,96,55);
+      g.fillStyle(0x7A4A20);g.fillRect(x-42,y-3,84,23);
+      g.fillStyle(0xFFFFFF);g.fillRect(x-34,y+2,16,14);
+      g.fillStyle(0xAAEEFF);g.fillRect(x-12,y+2,16,14);
+      g.fillStyle(0xFFFF88);g.fillRect(x+10,y+2,16,14);
+      g.fillStyle(0x222233);g.fillRect(x-29,y-22,58,15);
+      g.fillStyle(0x55DDFF);g.fillRect(x-25,y-19,50,8);
+      c.add(this.add.text(x,y-42,'LEARNING',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#5A3518'}).setOrigin(0.5));
     });
     addBit('trophy',(g,c)=>{
       g.lineStyle(3,C.orange);g.strokeRect(250,HUD_H+34,108,64);
@@ -804,32 +799,32 @@ class GameScene extends Phaser.Scene{
       c.add(this.add.text(304,HUD_H+24,'TROPHY WALL',{fontFamily:"'Press Start 2P'",fontSize:'6px',color:'#5A3518'}).setOrigin(0.5));
     });
     addBit('green',(g,c)=>{
-      [[186,HUD_H+178],[186,HUD_H+348],[340,HUD_H+445],[228,HUD_H+452],[322,HUD_H+585]].forEach(([x,y])=>plantAt(g,x,y));
-      g.lineStyle(3,0x1E5A2E);g.strokeRect(320,HUD_H+503,46,60);
-      g.fillStyle(0x2D8A42);g.fillRect(328,HUD_H+516,30,38);
-      g.fillStyle(0xFFFFFF);g.fillRect(335,HUD_H+525,16,4);g.fillRect(335,HUD_H+536,16,4);g.fillRect(340,HUD_H+520,6,22);
-      c.add(this.add.text(343,HUD_H+492,'GREEN ZONE',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#1E5A2E'}).setOrigin(0.5));
+      [[186,HUD_H+178],[186,HUD_H+348],[228,HUD_H+452]].forEach(([x,y])=>plantAt(g,x,y));
+      const x=344,y=HUD_H+410;
+      g.lineStyle(2,0x1E5A2E);g.strokeRect(x-19,y-25,38,47);
+      g.fillStyle(0x2D8A42);g.fillRect(x-12,y-12,24,29);
+      g.fillStyle(0xFFFFFF);g.fillRect(x-7,y-5,14,3);g.fillRect(x-7,y+4,14,3);g.fillRect(x-2,y-9,4,20);
+      c.add(this.add.text(x,y-36,'GREEN',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#1E5A2E'}).setOrigin(0.5));
     });
     addBit('plants',(g,c)=>{
-      g.lineStyle(3,0x2E6A2E);g.strokeRect(14,HUD_H+120,178,86);
-      [[28,HUD_H+174],[74,HUD_H+188],[138,HUD_H+176],[184,HUD_H+202],[26,HUD_H+382],[184,HUD_H+458],[118,GH-126]].forEach(([x,y])=>plantAt(g,x,y));
+      [[28,HUD_H+174],[184,HUD_H+202],[26,HUD_H+382],[184,HUD_H+458],[118,GH-126]].forEach(([x,y])=>plantAt(g,x,y));
       c.add(this.add.text(104,HUD_H+110,'FRESH OFFICE',{fontFamily:"'Press Start 2P'",fontSize:'6px',color:'#2E6A2E'}).setOrigin(0.5));
     });
     addBit('chill',(g,c)=>{
-      g.lineStyle(3,0x33445C);g.strokeRect(226,GH-125,136,66);
-      g.fillStyle(0x5B6E90);g.fillRect(236,GH-94,92,30);
-      g.fillStyle(0x6F82A6);g.fillRect(242,GH-89,80,18);
-      g.fillStyle(C.orange);g.fillRect(334,GH-98,24,34);
-      g.fillStyle(0xFFFFFF);g.fillRect(338,GH-92,16,9);
-      g.fillStyle(0xFFD60A);g.fillRect(232,GH-118,18,18);g.fillRect(254,GH-118,18,18);
-      c.add(this.add.text(294,GH-139,'CHILL ZONE',{fontFamily:"'Press Start 2P'",fontSize:'6px',color:'#33445C'}).setOrigin(0.5));
+      const x=330,y=GH-105;
+      g.lineStyle(2,0x33445C);g.strokeRect(x-35,y-28,70,52);
+      g.fillStyle(0x5B6E90);g.fillRect(x-27,y-1,54,18);
+      g.fillStyle(0x6F82A6);g.fillRect(x-23,y+2,46,10);
+      g.fillStyle(0xFFD60A);g.fillRect(x-29,y-22,16,15);g.fillRect(x-9,y-22,16,15);
+      c.add(this.add.text(x,y-40,'CHILL',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#33445C'}).setOrigin(0.5));
     });
     addBit('ideas',(g,c)=>{
-      g.lineStyle(3,0x553311);g.strokeRect(208,HUD_H+174,96,78);
-      g.fillStyle(0x88552A);g.fillRect(216,HUD_H+188,80,58);
-      g.fillStyle(0xCCA060);g.fillRect(220,HUD_H+192,72,50);
-      [[0xFFFF88,225,HUD_H+198],[0xAAFFAA,254,HUD_H+202],[0xFFAAAA,228,HUD_H+222],[0xAADDFF,258,HUD_H+224]].forEach(([col,x,y])=>{g.fillStyle(col);g.fillRect(x,y,24,14);g.fillStyle(0x333333);g.fillRect(x+3,y+4,14,2);});
-      c.add(this.add.text(256,HUD_H+162,'IDEAS BOARD',{fontFamily:"'Press Start 2P'",fontSize:'6px',color:'#5A3518'}).setOrigin(0.5));
+      const x=244,y=HUD_H+145;
+      g.lineStyle(2,0x553311);g.strokeRect(x-34,y-25,68,50);
+      g.fillStyle(0x88552A);g.fillRect(x-29,y-19,58,39);
+      g.fillStyle(0xCCA060);g.fillRect(x-26,y-16,52,33);
+      [[0xFFFF88,x-22,y-12],[0xAAFFAA,x+1,y-10],[0xFFAAAA,x-20,y+4],[0xAADDFF,x+4,y+5]].forEach(([col,nx,ny])=>{g.fillStyle(col);g.fillRect(nx,ny,18,10);g.fillStyle(0x333333);g.fillRect(nx+3,ny+3,10,2);});
+      c.add(this.add.text(x,y-37,'IDEAS',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#5A3518'}).setOrigin(0.5));
     });
   }
 

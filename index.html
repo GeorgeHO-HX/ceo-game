@@ -199,8 +199,8 @@ class Employee{
     this.cnt=scene.add.container(x,y).setDepth(5);
     const t=this.type, s=2;
 
-    // Shadow
-    this.shadow=scene.add.ellipse(0,18,20,8,0x000000,0.25);
+    // Blocky pixel shadow
+    this.shadow=scene.add.rectangle(0,18,20,6,0x000000,0.24);
 
     // Separate limb graphics for walk animation
     this.legL=scene.add.graphics(); this._drawLeg(this.legL,-4,s,t);
@@ -236,12 +236,14 @@ class Employee{
   }
   _drawTorso(g,s,t){
     g.clear();
+    g.fillStyle(0x050505); g.fillRect(-6*s,-s,12*s,11*s);
     g.fillStyle(t.suit); g.fillRect(-5*s,0,10*s,9*s);
     g.fillStyle(0xFFFFFF); g.fillRect(-s,0,2*s,2*s);
     g.fillStyle(t.tie);   g.fillRect(-s,2*s,2*s,5*s);
   }
   _drawHead(g,s,t){
     g.clear();
+    g.fillStyle(0x050505); g.fillRect(-5*s,-11*s,10*s,11*s);
     g.fillStyle(t.skin); g.fillRect(-4*s,-8*s,8*s,8*s);
     g.fillStyle(t.hair);
     if(t.hs==='short'){
@@ -608,6 +610,10 @@ class GameScene extends Phaser.Scene{
     for(let cy=OY+48;cy<H-68;cy+=18){
       carpet.fillStyle(C.carpetDk,0.25); carpet.fillRect(6,cy,193,2);
     }
+    for(let px=14;px<195;px+=16)for(let py=OY+54;py<H-78;py+=16){
+      carpet.fillStyle((px+py)%32===0?0x88A4B8:0x5F7F98,0.26);
+      carpet.fillRect(px,py,4,4);
+    }
     // Carpet border
     carpet.lineStyle(2,C.carpetDk,0.5);
     carpet.strokeRect(6,OY+44,193,offH-48);
@@ -617,6 +623,7 @@ class GameScene extends Phaser.Scene{
     for(let tx=208;tx<W-4;tx+=24)for(let ty=OY+44;ty<H-66;ty+=24){
       floor.fillStyle(C.floor); floor.fillRect(tx+1,ty+1,22,22);
       floor.fillStyle(C.floorGrid); floor.fillRect(tx,ty,24,1);floor.fillRect(tx,ty,1,24);
+      floor.fillStyle((tx+ty)%48===0?0xF6EED8:0xD8D0BA,0.65);floor.fillRect(tx+5,ty+5,5,5);
     }
 
     // ── RIGHT-TOP: Meeting Room ──
@@ -666,11 +673,15 @@ class GameScene extends Phaser.Scene{
     }
     this.add.text(rx+rW/2,ry+6,'MEETING ROOM',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#887766'}).setOrigin(0.5,0).setDepth(3);
 
-    // Round table (centre of room)
+    // Blocky octagon table (centre of room)
     const tx=rx+rW/2, ty=ry+rH/2+5;
-    g.fillStyle(C.tableDark); g.fillCircle(tx,ty,34);
-    g.fillStyle(C.tableRound); g.fillCircle(tx,ty,30);
-    g.fillStyle(0xEEAA60,0.35); g.fillCircle(tx-8,ty-8,14);
+    g.fillStyle(0x4A260F);
+    g.fillRect(tx-30,ty-38,60,76);g.fillRect(tx-42,ty-26,84,52);
+    g.fillStyle(C.tableDark);
+    g.fillRect(tx-26,ty-34,52,68);g.fillRect(tx-38,ty-22,76,44);
+    g.fillStyle(C.tableRound);
+    g.fillRect(tx-22,ty-30,44,60);g.fillRect(tx-34,ty-18,68,36);
+    g.fillStyle(0xEEAA60,0.35); g.fillRect(tx-22,ty-18,24,16);
 
     // Notepads
     [[tx-20,ty-10],[tx+8,ty+8],[tx-4,ty-20]].forEach(([nx,ny])=>{
@@ -683,12 +694,14 @@ class GameScene extends Phaser.Scene{
     const angles=[0,60,120,180,240,300];
     angles.forEach(a=>{
       const rad=Phaser.Math.DegToRad(a);
-      const cx=tx+Math.cos(rad)*44, cy=ty+Math.sin(rad)*44;
-      g.fillStyle(C.chairDark); g.fillCircle(cx,cy,10);
-      g.fillStyle(C.chairSeat); g.fillCircle(cx,cy,8);
+      let cx=tx+Math.cos(rad)*44, cy=ty+Math.sin(rad)*44;
+      cx=Math.round(cx/2)*2; cy=Math.round(cy/2)*2;
+      g.fillStyle(0x050509); g.fillRect(cx-11,cy-9,22,18);
+      g.fillStyle(C.chairDark); g.fillRect(cx-10,cy-8,20,16);
+      g.fillStyle(C.chairSeat); g.fillRect(cx-7,cy-5,14,10);
       // Chair back indicator
       g.fillStyle(C.chairDark);
-      g.fillRect(cx+Math.cos(rad)*7-3,cy+Math.sin(rad)*7-3,6,6);
+      g.fillRect(Math.round(cx+Math.cos(rad)*7-3),Math.round(cy+Math.sin(rad)*7-3),6,6);
     });
 
     this.mtgSeats=angles.map(a=>{
@@ -713,7 +726,7 @@ class GameScene extends Phaser.Scene{
     g.fillStyle(0xFFFFFF);
     g.fillRect(ptx-1,pty-21,2,42); // net
     g.fillRect(ptx-42,pty-1,84,2); // centre line
-    g.fillStyle(0xFFFFBB); g.fillCircle(ptx+16,pty-9,4); // ball
+    g.fillStyle(0xFFFFBB); g.fillRect(ptx+14,pty-11,5,5); // pixel ball
     // Paddles
     g.fillStyle(0xCC2222);g.fillRect(ptx+30,pty-18,11,14);
     g.fillStyle(0x884422);g.fillRect(ptx+33,pty-4,5,8);
@@ -730,7 +743,7 @@ class GameScene extends Phaser.Scene{
     });
     // Push pins
     [[10,8],[30,18],[48,10],[14,32]].forEach(([px,py])=>{
-      g.fillStyle(0xFF4444);g.fillCircle(nbx+px,nby+py,2);
+      g.fillStyle(0xFF4444);g.fillRect(nbx+px-2,nby+py-2,4,4);
     });
 
     // Sofa
@@ -877,8 +890,10 @@ class GameScene extends Phaser.Scene{
 
   _drawDeskAt(g,x,y){
     // Desktop (orange-brown)
-    g.lineStyle(2,0x4A260F);g.strokeRect(x-28,y-30,56,84);
+    g.fillStyle(0x050505);g.fillRect(x-29,y-31,58,86);
     g.fillStyle(C.deskTop); g.fillRect(x-26,y-14,52,32);
+    g.fillStyle(0xF0A15A); g.fillRect(x-22,y-10,44,4);
+    g.fillStyle(0x7A3414); g.fillRect(x-22,y+10,44,4);
     // Desk sides / depth
     g.fillStyle(C.deskSide);
     g.fillRect(x-26,y+18,52,7);
@@ -890,6 +905,7 @@ class GameScene extends Phaser.Scene{
     g.fillStyle(0x88EEFF,0.3); g.fillRect(x-11,y-26,10,6);
     g.fillStyle(C.deskSide); g.fillRect(x-2,y-10,4,5); // stand
     // Keyboard
+    g.fillStyle(0x050509); g.fillRect(x-13,y,26,11);
     g.fillStyle(0xCCCCDD); g.fillRect(x-11,y+1,22,9);
     g.fillStyle(0xAAAABB);
     for(let kx=x-9;kx<x+10;kx+=5){g.fillRect(kx,y+3,4,2);g.fillRect(kx,y+7,4,2);}
@@ -903,6 +919,7 @@ class GameScene extends Phaser.Scene{
   }
 
   _drawFilingCabinet(g,x,y){
+    g.fillStyle(0x050505);g.fillRect(x-16,y-2,32,58);
     g.fillStyle(C.cab);g.fillRect(x-14,y,28,54);
     g.fillStyle(C.cabDk);g.fillRect(x-14,y,28,3);
     [0,19,38].forEach(dy=>{

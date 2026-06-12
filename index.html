@@ -171,6 +171,45 @@ function plantAt(g,x,y){
   g.fillStyle(0x1F4F1F);g.fillRect(x-2,y-13,4,13);
 }
 
+function addRetroOverlay(scene,startY=0,depth=9){
+  const g=scene.add.graphics().setDepth(depth);
+  for(let y=startY;y<GH;y+=4){
+    g.fillStyle(0x000000,0.055);g.fillRect(0,y,GW,1);
+  }
+  for(let x=0;x<GW;x+=16)for(let y=startY;y<GH;y+=16){
+    if((x+y)%32===0){g.fillStyle(0xFFFFFF,0.025);g.fillRect(x,y,3,3);}
+  }
+  g.fillStyle(0x000000,0.18);
+  g.fillRect(0,startY,4,GH-startY);g.fillRect(GW-4,startY,4,GH-startY);
+}
+
+function addPixelPanel(scene,x,y,w,h,fill=C.panel,stroke=C.orange,depth=10,alpha=1){
+  const g=scene.add.graphics().setDepth(depth);
+  const l=Math.round(x-w/2),t=Math.round(y-h/2);
+  g.fillStyle(0x050509,0.72*alpha);g.fillRect(l+5,t+5,w,h);
+  g.fillStyle(fill,alpha);g.fillRect(l,t,w,h);
+  g.fillStyle(0xFFFFFF,0.06*alpha);g.fillRect(l+4,t+4,w-8,4);
+  g.fillStyle(stroke,alpha);
+  g.fillRect(l,t,w,4);g.fillRect(l,t+h-4,w,4);
+  g.fillRect(l,t,4,h);g.fillRect(l+w-4,t,4,h);
+  g.fillStyle(0x050509,alpha);
+  [[l,t],[l+w-8,t],[l,t+h-8],[l+w-8,t+h-8]].forEach(([cx,cy])=>g.fillRect(cx,cy,8,8));
+  g.fillStyle(stroke,alpha);
+  [[l+4,t+4],[l+w-12,t+4],[l+4,t+h-12],[l+w-12,t+h-12]].forEach(([cx,cy])=>g.fillRect(cx,cy,8,8));
+  return g;
+}
+
+function addPixelButtonBack(scene,x,y,w,h,col,depth=30){
+  const g=scene.add.graphics().setDepth(depth);
+  const l=Math.round(x-w/2),t=Math.round(y-h/2);
+  g.fillStyle(0x050509,0.7);g.fillRect(l+4,t+4,w,h);
+  g.fillStyle(0x050509);g.fillRect(l-2,t-2,w+4,h+4);
+  g.fillStyle(col);g.fillRect(l,t,w,h);
+  g.fillStyle(0xFFFFFF,0.12);g.fillRect(l+5,t+5,w-10,4);
+  g.fillStyle(0x050509,0.22);g.fillRect(l+5,t+h-8,w-10,3);
+  return g;
+}
+
 // ═══════════════════════════════════════════════════════
 //  EMPLOYEE  (animated pixel-art character)
 // ═══════════════════════════════════════════════════════
@@ -449,28 +488,44 @@ class AvatarSelectScene extends Phaser.Scene{
     AVATARS.forEach((av,i)=>{
       const cx=i%2===0?W*0.27:W*0.73, cy=272+Math.floor(i/2)*155;
       const c=this.add.container(cx,cy);
+      const sh=this.add.rectangle(5,6,140,138,0x050509,0.75);
       const bg=this.add.rectangle(0,0,140,138,C.darkMid).setInteractive();
-      const bd=this.add.rectangle(0,0,140,138); bd.setStrokeStyle(3,i===0?C.orange:0x333355);
+      const hi=this.add.rectangle(0,-62,122,5,0xFFFFFF,0.06);
+      const bd=this.add.rectangle(0,0,140,138); bd.setStrokeStyle(4,i===0?C.orange:0x333355);
+      const px=this.add.graphics();
+      [[-70,-69],[58,-69],[-70,57],[58,57]].forEach(([x,y])=>{
+        px.fillStyle(0x050509);px.fillRect(x,y,12,12);
+        px.fillStyle(i===0?C.orange:0x333355);px.fillRect(x+4,y+4,8,8);
+      });
       const avG=this.add.graphics(); drawCEOPerson(avG,0,-20,3,av.suit,av.skin,av.hair);
       const nt=this.add.text(0,40,av.name,{fontFamily:"'Press Start 2P'",fontSize:'7px',color:'#FFF',wordWrap:{width:120},align:'center'}).setOrigin(0.5);
-      c.add([bg,bd,avG,nt]);
+      c.add([sh,bg,hi,bd,px,avG,nt]);
       bg.on('pointerdown',()=>{
         this.selIdx=i;
-        this.cards.forEach((card,j)=>card.bd.setStrokeStyle(3,j===i?C.orange:0x333355));
+        this.cards.forEach((card,j)=>{
+          card.bd.setStrokeStyle(4,j===i?C.orange:0x333355);
+          card.px.clear();
+          [[-70,-69],[58,-69],[-70,57],[58,57]].forEach(([x,y])=>{
+            card.px.fillStyle(0x050509);card.px.fillRect(x,y,12,12);
+            card.px.fillStyle(j===i?C.orange:0x333355);card.px.fillRect(x+4,y+4,8,8);
+          });
+        });
         this.tweens.add({targets:c,scaleX:1.06,scaleY:1.06,duration:90,yoyo:true});
       });
       bg.on('pointerover',()=>bg.setFillStyle(0x222240));
       bg.on('pointerout',()=>bg.setFillStyle(C.darkMid));
-      this.cards.push({bd});
+      this.cards.push({bd,px});
     });
-    const btn=this.add.rectangle(W/2,H-75,260,52,C.orange).setInteractive();
+    const startBack=addPixelButtonBack(this,W/2,H-75,260,52,C.orange,0);
+    const btn=this.add.rectangle(W/2,H-75,260,52,C.orange,0.01).setInteractive();
     this.add.text(W/2,H-75,'▶  START GAME',{fontFamily:"'Press Start 2P'",fontSize:'12px',color:'#FFF'}).setOrigin(0.5).setDepth(1);
-    this.tweens.add({targets:btn,alpha:0.75,duration:900,yoyo:true,repeat:-1});
+    this.tweens.add({targets:startBack,alpha:0.78,duration:900,yoyo:true,repeat:-1});
     btn.on('pointerdown',()=>this.scene.start('Game',{avatarIndex:this.selIdx}));
-    btn.on('pointerover',()=>btn.setFillStyle(C.orangeLt));
-    btn.on('pointerout',()=>btn.setFillStyle(C.orange));
+    btn.on('pointerover',()=>startBack.setAlpha(0.9));
+    btn.on('pointerout',()=>startBack.setAlpha(1));
     this.add.rectangle(W/2,H-16,W,32,C.darkMid);
     this.add.text(W/2,H-16,'10 DECISIONS  ·  BUILD THE BEST WORKPLACE!',{fontFamily:"'Press Start 2P'",fontSize:'5px',color:'#444466'}).setOrigin(0.5);
+    addRetroOverlay(this,0,4);
   }
 }
 
@@ -495,6 +550,7 @@ class GameScene extends Phaser.Scene{
     this._buildOffice();
     this._buildDeskColliders();
     this._spawnEmployees();
+    addRetroOverlay(this,HUD_H,9);
     this._buildHUD();
     this._buildCEO();
 
@@ -569,6 +625,10 @@ class GameScene extends Phaser.Scene{
     // ── Base walls ──
     const walls=this.add.graphics().setDepth(0);
     walls.fillStyle(C.wallPaint); walls.fillRect(0,OY,W,offH);
+    for(let bx=8;bx<W-8;bx+=18)for(let by=OY+54;by<H-78;by+=18){
+      walls.fillStyle((bx+by)%36===0?0xD8C5AA:0xF0DEC2,0.55);
+      walls.fillRect(bx,by,6,4);
+    }
     walls.fillStyle(C.skirting);
     walls.fillRect(0,OY,W,5);
     walls.fillRect(0,OY,5,offH);
@@ -577,17 +637,20 @@ class GameScene extends Phaser.Scene{
 
     // ── Windows (top wall, 3 panes) ──
     [[32,OY+5],[140,OY+5],[248,OY+5]].forEach(([wx,wy])=>{
+      walls.fillStyle(0x050505); walls.fillRect(wx-3,wy-3,62,44);
       walls.fillStyle(C.winFrame); walls.fillRect(wx,wy,56,38);
       walls.fillStyle(C.winGlass); walls.fillRect(wx+3,wy+3,50,32);
       walls.fillStyle(C.winGlassLt);
       walls.fillRect(wx+4,wy+4,22,14); walls.fillRect(wx+29,wy+4,20,14);
       walls.fillStyle(C.winFrame);
       walls.fillRect(wx+28,wy+3,2,32); walls.fillRect(wx+3,wy+20,50,2);
+      walls.fillStyle(0xFFFFFF,0.45); walls.fillRect(wx+8,wy+8,8,4); walls.fillRect(wx+34,wy+23,10,4);
     });
 
     // ── Vertical room-divider wall — drawn in 3 sections with 2 door gaps ──
     // Door 1: y=185-235 (enters meeting room)   Door 2: y=355-405 (enters break room)
     const drawWallSeg=(y1,y2)=>{
+      walls.fillStyle(0x050505); walls.fillRect(198,y1-2,12,y2-y1+4);
       walls.fillStyle(C.wallDark); walls.fillRect(200,y1,8,y2-y1);
       walls.fillStyle(C.skirting); walls.fillRect(200,y1,8,4);
     };
@@ -597,6 +660,8 @@ class GameScene extends Phaser.Scene{
 
     // Door frames
     const drawDoorFrame=(dy)=>{
+      walls.fillStyle(0x050505);
+      walls.fillRect(196,dy-2,8,54);
       walls.fillStyle(C.doorDk);
       walls.fillRect(198,dy,4,4); walls.fillRect(198,dy+46,4,4); // lintels
       walls.fillStyle(C.doorCol);
@@ -1027,15 +1092,22 @@ class GameScene extends Phaser.Scene{
     const text=lines.join('\n');
     const w=Math.min(GW-34,Math.max(92,Math.max(...lines.map(l=>l.length))*6+18));
     const h=24+lines.length*11;
+    const sh=this.add.rectangle(4,5,w,h,0x050509,0.72).setOrigin(0.5);
     const bg=this.add.rectangle(0,0,w,h,0xFFFFFF,0.96).setOrigin(0.5);
-    bg.setStrokeStyle(3,col);
+    bg.setStrokeStyle(4,col);
     const tail=this.add.graphics();
+    tail.fillStyle(0x050509,0.72);tail.fillRect(-4,h/2+2,14,8);
     tail.fillStyle(0xFFFFFF);tail.fillRect(-7,h/2-2,14,8);
-    tail.lineStyle(2,col);tail.strokeRect(-7,h/2-2,14,8);
+    tail.lineStyle(3,col);tail.strokeRect(-7,h/2-2,14,8);
+    const corners=this.add.graphics();
+    corners.fillStyle(0x050509);
+    [[-w/2,-h/2],[w/2-8,-h/2],[-w/2,h/2-8],[w/2-8,h/2-8]].forEach(([x,y])=>corners.fillRect(x,y,8,8));
+    corners.fillStyle(col);
+    [[-w/2+3,-h/2+3],[w/2-11,-h/2+3],[-w/2+3,h/2-11],[w/2-11,h/2-11]].forEach(([x,y])=>corners.fillRect(x,y,8,8));
     const nameCol=`#${col.toString(16).padStart(6,'0')}`;
     const name=this.add.text(-w/2+7,-h/2+5,emp.empName.toUpperCase(),{fontFamily:"'Press Start 2P'",fontSize:'5px',color:nameCol}).setOrigin(0,0);
     const txt=this.add.text(0,3,text,{fontFamily:"'Press Start 2P'",fontSize:'6px',color:'#111111',align:'center',lineSpacing:3}).setOrigin(0.5);
-    bubble.add([bg,tail,name,txt]);
+    bubble.add([sh,bg,tail,corners,name,txt]);
     bubble.x=Phaser.Math.Clamp(bubble.x,w/2+6,GW-w/2-6);
     bubble.y=Phaser.Math.Clamp(bubble.y,HUD_H+38,GH-122);
     this.tweens.add({targets:bubble,y:'-=4',duration:120,yoyo:true,repeat:2,ease:'Linear'});
@@ -1045,9 +1117,11 @@ class GameScene extends Phaser.Scene{
   // ── HUD ────────────────────────────────────────────
   _buildHUD(){
     const W=GW;
-    this.add.rectangle(W/2,HUD_H/2,W,HUD_H,C.panel).setDepth(10);
-    const hb=this.add.graphics().setDepth(10);
-    hb.lineStyle(2,C.orange);hb.strokeRect(0,0,W,HUD_H);
+    this.add.rectangle(W/2,HUD_H/2,W,HUD_H,0x050509).setDepth(10);
+    addPixelPanel(this,W/2,HUD_H/2,W,HUD_H,C.panel,C.orange,10,1);
+    const hb=this.add.graphics().setDepth(11);
+    hb.fillStyle(C.orange,0.9);hb.fillRect(8,4,W-16,4);hb.fillRect(8,HUD_H-8,W-16,4);
+    for(let x=12;x<W-12;x+=24){hb.fillStyle(0xFFFFFF,0.06);hb.fillRect(x,12,8,4);}
     const lS={fontFamily:"'Press Start 2P'",fontSize:'7px',color:'#6F7080'};
     const vS={fontFamily:"'Press Start 2P'",fontSize:'12px',color:'#FFF'};
     this.add.text(10,8,'STAFF',lS).setDepth(11);
@@ -1060,11 +1134,13 @@ class GameScene extends Phaser.Scene{
     this.timerT=this.add.text(W-62,23,'5:00',{...vS}).setDepth(11);
     const bY=63;
     this.add.text(10,bY-6,'HAPPINESS',{...lS,fontSize:'5px'}).setDepth(11);
-    this.add.rectangle(82,bY,105,13,0x222233).setDepth(11).setOrigin(0,0.5);
-    this.hBar=this.add.rectangle(82,bY,74,13,C.green).setDepth(12).setOrigin(0,0.5);
+    this.add.rectangle(82,bY,109,17,0x050509).setDepth(11).setOrigin(0,0.5);
+    this.add.rectangle(84,bY,105,13,0x222233).setDepth(11).setOrigin(0,0.5);
+    this.hBar=this.add.rectangle(84,bY,74,13,C.green).setDepth(12).setOrigin(0,0.5);
     this.add.text(198,bY-6,'PRODUCTIVITY',{...lS,fontSize:'5px'}).setDepth(11);
-    this.add.rectangle(292,bY,70,13,0x222233).setDepth(11).setOrigin(0,0.5);
-    this.pBar=this.add.rectangle(292,bY,49,13,C.orange).setDepth(12).setOrigin(0,0.5);
+    this.add.rectangle(292,bY,74,17,0x050509).setDepth(11).setOrigin(0,0.5);
+    this.add.rectangle(294,bY,70,13,0x222233).setDepth(11).setOrigin(0,0.5);
+    this.pBar=this.add.rectangle(294,bY,49,13,C.orange).setDepth(12).setOrigin(0,0.5);
     this.add.text(10,78,'DECISIONS',{...lS,fontSize:'4px'}).setDepth(11);
     this.decisionPips=[];
     const pW=13,gap=3,startX=78;
@@ -1116,8 +1192,7 @@ class GameScene extends Phaser.Scene{
   // ── CEO AVATAR ─────────────────────────────────────
   _buildCEO(){
     const av=AVATARS[this.avatarIndex], cx=GW-48,cy=GH-38;
-    const bg=this.add.rectangle(cx,cy,78,62,C.panel,0.92).setDepth(10);
-    bg.setStrokeStyle(2,C.orange);
+    addPixelPanel(this,cx,cy,78,62,C.panel,C.orange,10,0.96);
     this.add.text(cx,GH-12,'YOU',{fontFamily:"'Press Start 2P'",fontSize:'7px',color:C.oH}).setOrigin(0.5).setDepth(11);
     this.ceoG=this.add.graphics().setDepth(11);
     drawCEOPerson(this.ceoG,cx,cy-10,2,av.suit,av.skin,av.hair);
@@ -1223,23 +1298,23 @@ class GameScene extends Phaser.Scene{
     const q=this.qPool[this.qIndex++], W=GW,H=GH,cardH=Math.min(430,H-135),midY=H/2+8;
     const ui=this.add.container(0,0).setDepth(30);
     const dim=this.add.rectangle(W/2,H/2,W,H,0,0.80);
-    const card=this.add.rectangle(W/2,midY,W-16,cardH,C.panel);
-    const border=this.add.rectangle(W/2,midY,W-16,cardH); border.setStrokeStyle(3,C.orange);
+    const card=addPixelPanel(this,W/2,midY,W-16,cardH,C.panel,C.orange,30,1);
+    const titleBack=this.add.rectangle(W/2,midY-cardH/2+20,W-44,30,0x050509,0.45);
     const qn=this.add.text(W/2,midY-cardH/2+16,`DECISION ${this.qIndex}/${this.qPool.length}`,{fontFamily:"'Press Start 2P'",fontSize:'9px',color:C.oH}).setOrigin(0.5);
     const ic=this.add.text(W/2,midY-cardH/2+50,q.i,{fontSize:'34px'}).setOrigin(0.5);
     const qt=this.add.text(W/2,midY-cardH/2+96,q.t,{fontFamily:"'Press Start 2P'",fontSize:'11px',color:'#FFF',align:'center',lineSpacing:6,wordWrap:{width:W-38}}).setOrigin(0.5,0);
-    ui.add([dim,card,border,qn,ic,qt]);
+    ui.add([dim,card,titleBack,qn,ic,qt]);
     const cols=[C.orange,0x4361EE,0x7B2FBE], by0=midY-cardH/2+215;
     q.o.forEach((opt,idx)=>{
       const by=by0+idx*61, col=cols[idx];
-      const btn=this.add.rectangle(W/2,by,W-38,52,col).setInteractive();
+      const btnBack=addPixelButtonBack(this,W/2,by,W-38,52,col,30);
+      const btn=this.add.rectangle(W/2,by,W-38,52,col,0.01).setInteractive();
       const bt=this.add.text(W/2,by,opt.l,{fontFamily:"'Press Start 2P'",fontSize:'9px',color:'#FFF',wordWrap:{width:W-58},align:'center',lineSpacing:4}).setOrigin(0.5);
       btn.on('pointerdown',()=>{ui.destroy(true);this._applyChoice(opt);this.qActive=false;});
-      btn.on('pointerover',()=>{const lc=Phaser.Display.Color.ValueToColor(col);lc.lighten(25);btn.setFillStyle(lc.color);});
-      btn.on('pointerout',()=>btn.setFillStyle(col));
-      ui.add([btn,bt]);
+      btn.on('pointerover',()=>{btnBack.setAlpha(0.85);});
+      btn.on('pointerout',()=>btnBack.setAlpha(1));
+      ui.add([btnBack,btn,bt]);
     });
-    this.tweens.add({targets:[card,border],scaleX:{from:0.85,to:1},scaleY:{from:0.85,to:1},duration:180,ease:'Back.easeOut'});
   }
 
   _applyChoice(opt){
@@ -1284,12 +1359,12 @@ class GameScene extends Phaser.Scene{
   _showFeedback(msg,positive){
     const fb=this.add.container(0,0).setDepth(25);
     const speaker=this._pickSpeaker();
-    const bg=this.add.rectangle(GW/2,GH-122,GW-16,104,C.panel,0.97);
-    bg.setStrokeStyle(3,positive?C.orange:C.red);
+    const bg=addPixelPanel(this,GW/2,GH-122,GW-16,112,C.panel,positive?C.orange:C.red,25,0.98);
+    const top=this.add.rectangle(GW/2,GH-170,GW-48,5,positive?C.green:C.red,0.9);
     const name=this.add.text(22,GH-166,speaker?`${speaker.empName}:`:'TEAM:',{fontFamily:"'Press Start 2P'",fontSize:'9px',color:positive?C.gH:C.rH});
     const txt=this.add.text(GW/2,GH-118,`"${msg}"`,{fontFamily:"'Press Start 2P'",fontSize:'10px',color:'#FFF',wordWrap:{width:GW-34},align:'center',lineSpacing:6}).setOrigin(0.5);
     if(speaker)this._float(speaker.x,speaker.y-42,'💬',positive?C.gH:C.rH,11);
-    fb.add([bg,name,txt]);
+    fb.add([bg,top,name,txt]);
     this.time.delayedCall(3200,()=>this.tweens.add({targets:fb,alpha:0,duration:400,onComplete:()=>fb.destroy(true)}));
   }
 
@@ -1344,25 +1419,26 @@ class EndScene extends Phaser.Scene{
     const rk=this.score>=88?'S RANK — LEGENDARY CEO! 🌟':this.score>=72?'A RANK — GREAT LEADER! 💪':this.score>=56?'B RANK — SOLID MANAGER':this.score>=40?'C RANK — NEEDS WORK...':'D RANK — FIRE YOURSELF 😬';
     this.add.text(W/2,248,rk,{fontFamily:"'Press Start 2P'",fontSize:'8px',color:sc}).setOrigin(0.5);
     const pY=278;
-    this.add.rectangle(W/2,pY+75,W-30,150,C.darkMid).setOrigin(0.5,0);
-    this.add.rectangle(W/2,pY+75,W-30,150,0,0).setStrokeStyle(2,0x333355).setOrigin(0.5,0);
+    addPixelPanel(this,W/2,pY+150,W-30,150,C.darkMid,0x333355,0,1);
     [{label:'😊 Avg Happiness',val:`${this.avgH}%`,col:this.avgH>60?C.gH:C.rH},{label:'⚡ Avg Productivity',val:`${this.avgP}%`,col:this.avgP>60?C.oH:C.rH},{label:'👥 Staff Retained',val:`${this.retained}/${MAX_EMP}`,col:this.retained>4?C.tH:C.rH}].forEach((s,i)=>{
       const sy=pY+95+i*40;
       this.add.text(24,sy,s.label,{fontFamily:"'Press Start 2P'",fontSize:'7px',color:'#666677'});
       this.add.text(W-24,sy+2,s.val,{fontFamily:"'Press Start 2P'",fontSize:'11px',color:s.col}).setOrigin(1,0);
       if(i<2){const dv=this.add.graphics();dv.lineStyle(1,0x222233);dv.lineBetween(20,sy+32,W-20,sy+32);}
     });
-    const btn=this.add.rectangle(W/2,H-95,265,52,C.orange).setInteractive();
+    const againBack=addPixelButtonBack(this,W/2,H-95,265,52,C.orange,0);
+    const btn=this.add.rectangle(W/2,H-95,265,52,C.orange,0.01).setInteractive();
     this.add.text(W/2,H-95,'▶  PLAY AGAIN',{fontFamily:"'Press Start 2P'",fontSize:'12px',color:'#FFF'}).setOrigin(0.5).setDepth(1);
-    this.tweens.add({targets:btn,alpha:0.75,duration:900,yoyo:true,repeat:-1});
+    this.tweens.add({targets:againBack,alpha:0.78,duration:900,yoyo:true,repeat:-1});
     btn.on('pointerdown',()=>this.scene.start('AvatarSelect'));
-    btn.on('pointerover',()=>btn.setFillStyle(C.orangeLt));
-    btn.on('pointerout',()=>btn.setFillStyle(C.orange));
+    btn.on('pointerover',()=>againBack.setAlpha(0.9));
+    btn.on('pointerout',()=>againBack.setAlpha(1));
     const cg=this.add.graphics().setDepth(5);
     drawCEOPerson(cg,W-38,H-48,2,av.suit,av.skin,av.hair);
     this.tweens.add({targets:cg,y:'-=4',duration:550,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
     this.add.rectangle(W/2,H-20,W,40,C.darkMid);
     this.add.text(W/2,H-20,'holidayextras.com',{fontFamily:"'Press Start 2P'",fontSize:'6px',color:'#333355'}).setOrigin(0.5);
+    addRetroOverlay(this,0,4);
   }
 }
 
